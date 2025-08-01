@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>聊天室系統</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      }
+      .hero-section {
+        padding: 100px 0;
+        text-align: center;
+        color: white;
+      }
+      .feature-card {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 15px;
+        padding: 30px;
+        margin: 20px 0;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s ease;
+      }
+      .feature-card:hover {
+        transform: translateY(-5px);
+      }
+      .feature-icon {
+        font-size: 3rem;
+        color: #667eea;
+        margin-bottom: 20px;
+      }
+      .api-section {
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 15px;
+        padding: 40px;
+        margin: 40px 0;
+      }
+      .endpoint {
+        background: #f8f9fa;
+        border-left: 4px solid #667eea;
+        padding: 15px;
+        margin: 10px 0;
+        border-radius: 5px;
+      }
+      .method-get {
+        border-left-color: #28a745;
+      }
+      .method-post {
+        border-left-color: #007bff;
+      }
+      .method-put {
+        border-left-color: #ffc107;
+      }
+      .method-delete {
+        border-left-color: #dc3545;
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+      <div class="container">
+        <a class="navbar-brand" href="#"
+          ><i class="fas fa-comments"></i> 聊天室系統</a
+        >
+        <div class="navbar-nav ms-auto">
+          <a class="nav-link" href="/login/">登入管理介面</a>
+          <a class="nav-link" href="/swagger/v1">API 文件</a>
+        </div>
+      </div>
+    </nav>
+
+    <div class="hero-section">
+      <div class="container">
+        <h1 class="display-4 mb-4">
+          <i class="fas fa-rocket"></i> 現代化聊天室系統
+        </h1>
+        <p class="lead mb-5">
+          功能完整的實時聊天平台，支援多語系、私訊、管理權限等進階功能
+        </p>
+        <div class="row" style="color: #222">
+          <div class="col-md-4">
+            <div class="feature-card">
+              <i class="fas fa-users feature-icon"></i>
+              <h4>多用戶聊天</h4>
+              <p>支援無限用戶同時在線聊天，實時訊息傳遞</p>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="feature-card">
+              <i class="fas fa-lock feature-icon"></i>
+              <h4>私密訊息</h4>
+              <p>一對一私密聊天，訊息加密傳輸保護隱私</p>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="feature-card">
+              <i class="fas fa-globe feature-icon"></i>
+              <h4>多語系支援</h4>
+              <p>支援中文、英文、日文等多種語系切換</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="container">
+      <div class="api-section">
+        <h2 class="text-center mb-4">
+          <i class="fas fa-code"></i> API 端點總覽
+        </h2>
+
+        <div class="row">
+          <div class="col-md-6">
+            <h4><i class="fas fa-user-circle"></i> 用戶認證</h4>
+            <div class="endpoint method-post">
+              <strong>POST</strong> /auth/register - 用戶註冊
+            </div>
+            <div class="endpoint method-post">
+              <strong>POST</strong> /auth/login - 用戶登入
+            </div>
+            <div class="endpoint method-post">
+              <strong>POST</strong> /auth/logout - 用戶登出
+            </div>
+            <div class="endpoint method-get">
+              <strong>GET</strong> /auth/profile - 獲取用戶資料
+            </div>
+
+            <h4 class="mt-4"><i class="fas fa-home"></i> 聊天室管理</h4>
+            <div class="endpoint method-post">
+              <strong>POST</strong> /chatroom/create - 創建聊天室
+            </div>
+            <div class="endpoint method-get">
+              <strong>GET</strong> /chatroom/list - 聊天室列表
+            </div>
+            <div class="endpoint method-post">
+              <strong>POST</strong> /chatroom/join/&lt;id&gt; - 加入聊天室
+            </div>
+            <div class="endpoint method-post">
+              <strong>POST</strong> /chatroom/leave/&lt;id&gt; - 退出聊天室
+            </div>
+          </div>
+
+          <div class="col-md-6">
+            <h4><i class="fas fa-envelope"></i> 訊息系統</h4>
+            <div class="endpoint method-post">
+              <strong>POST</strong> /message/send - 發送訊息
+            </div>
+            <div class="endpoint method-get">
+              <strong>GET</strong> /message/room/&lt;id&gt; - 獲取聊天室訊息
+            </div>
+            <div class="endpoint method-delete">
+              <strong>DELETE</strong> /message/delete/&lt;id&gt; - 刪除訊息
+            </div>
+
+            <h4 class="mt-4"><i class="fas fa-paper-plane"></i> 私人訊息</h4>
+            <div class="endpoint method-post">
+              <strong>POST</strong> /private/send - 發送私訊
+            </div>
+            <div class="endpoint method-get">
+              <strong>GET</strong> /private/conversations - 對話列表
+            </div>
+            <div class="endpoint method-get">
+              <strong>GET</strong> /private/messages/&lt;user_id&gt; - 私人對話
+            </div>
+
+            <h4 class="mt-4"><i class="fas fa-shield-alt"></i> 管理功能</h4>
+            <div class="endpoint method-post">
+              <strong>POST</strong> /admin/room/&lt;id&gt;/kick/&lt;user_id&gt;
+              - 踢出用戶
+            </div>
+            <div class="endpoint method-post">
+              <strong>POST</strong>
+              /admin/room/&lt;id&gt;/promote/&lt;user_id&gt; - 提升管理員
+            </div>
+          </div>
+        </div>
+
+        <div class="text-center mt-4">
+          <a href="/swagger/v1" class="btn btn-primary btn-lg">
+            <i class="fas fa-book"></i> 查看完整 API 文件
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <footer class="bg-dark text-white text-center py-4 mt-5">
+      <div class="container">
+        <p>&copy; 2025 聊天室系統. 使用 Flask-AppBuilder 構建</p>
+        <div class="social-links">
+          <i class="fab fa-github"></i>
+          <i class="fab fa-twitter"></i>
+          <i class="fab fa-linkedin"></i>
+        </div>
+      </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+  </body>
+</html>
