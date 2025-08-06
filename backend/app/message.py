@@ -17,7 +17,6 @@ class MessageManageView(ChatBaseView):
     
     
     @expose('/send', methods=['POST'])
-    @has_access
     def send_message(self):
         try:
             current_chat_user = self._get_current_user()

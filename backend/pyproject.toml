@@ -1,0 +1,14 @@
+[project]
+name = "backend"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "flask==1.1.4",
+    "flask-appbuilder==3.4.5",
+    "flask-cors==3.0.10",
+    "markupsafe==2.0.1",
+    "python-dotenv>=1.1.1",
+    "requests>=2.32.4",
+]

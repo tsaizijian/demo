@@ -6,6 +6,22 @@ import re
 import requests
 from . import db
 from .models import MyUser
+from flask import make_response
+import os
+from dotenv import load_dotenv
+load_dotenv(override=True)
+
+
+RECAPTCHA_SECRET_KEY = os.environ.get("RECAPTCHA_SECRET_KEY")
+
+def verify_recaptcha(token: str) -> bool:
+    secret = current_app.config.get("RECAPTCHA_SECRET")
+    response = requests.post(
+        "https://www.google.com/recaptcha/api/siteverify",
+        data={"secret": secret, "response": token}
+    )
+    result = response.json()
+    return result.get("success", False) and result.get("score", 0) >= 0.5
 
 
 class RegisterApi(BaseApi):
@@ -13,41 +29,19 @@ class RegisterApi(BaseApi):
     用戶註冊 API
     """
     route_base = '/api/register'
-    
-    def _verify_recaptcha(self, recaptcha_response):
+    @expose("", methods=["OPTIONS", "POST"])
+    def options(self):
         """
-        驗證 reCAPTCHA 響應
+        處理 CORS 預檢請求
         """
-        # 獲取配置的密鑰
-        secret_key = current_app.config.get('RECAPTCHA_PRIVATE_KEY')
-        if not secret_key:
-            # 如果沒有配置密鑰，跳過 reCAPTCHA 驗證（測試模式）
-            return True, "reCAPTCHA 已禁用，跳過驗證"
-        
-        if not recaptcha_response:
-            return False, "缺少 reCAPTCHA 驗證"
-        
-        # 向 Google reCAPTCHA API 發送驗證請求
-        verify_url = 'https://www.google.com/recaptcha/api/siteverify'
-        data = {
-            'secret': secret_key,
-            'response': recaptcha_response,
-            'remoteip': request.environ.get('REMOTE_ADDR')
-        }
-        
-        try:
-            response = requests.post(verify_url, data=data, timeout=10)
-            result = response.json()
-            
-            if result.get('success'):
-                return True, "reCAPTCHA 驗證成功"
-            else:
-                error_codes = result.get('error-codes', [])
-                return False, f"reCAPTCHA 驗證失敗: {', '.join(error_codes)}"
-                
-        except requests.RequestException as e:
-            return False, f"reCAPTCHA 驗證服務不可用: {str(e)}"
+        response = make_response()
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+        response.status_code = 200
+        return response
     
+  
     @expose('/user', methods=['POST'])
     def register_user(self):
         """
@@ -66,22 +60,27 @@ class RegisterApi(BaseApi):
         try:
             data = request.get_json()
             
-            # 驗證 reCAPTCHA
-            recaptcha_valid, recaptcha_message = self._verify_recaptcha(data.get('recaptcha_response'))
-            if not recaptcha_valid:
-                return jsonify({
-                    'success': False,
-                    'message': recaptcha_message
-                }), 400
-            
-            # 驗證必要字段（測試模式下不需要 recaptcha_response）
-            secret_key = current_app.config.get('RECAPTCHA_PRIVATE_KEY')
-            if secret_key:
-                required_fields = ['username', 'email', 'first_name', 'last_name', 'password', 'recaptcha_response']
-            else:
-                required_fields = ['username', 'email', 'first_name', 'last_name', 'password']
+            # ✅ 統一使用 recaptcha_response
+            token = data.get("recaptcha_response")
+
+            if not token:
+                return self.response_400(message="reCAPTCHA token 缺失")
+
+            # ✅ 進行 Google 驗證
+            secret = os.getenv("APP_RECAPTCHA_SECRET")
+            verify_res = requests.post(
+                "https://www.google.com/recaptcha/api/siteverify",
+                data={"secret": secret, "response": token}
+            )
+            result = verify_res.json()
+            print("🔐 reCAPTCHA 結果：", result)
+
+            if not result.get("success") or result.get("score", 0) < 0.5:
+                return self.response_400(message="reCAPTCHA 驗證失敗")
+
+            # ✅ 檢查必要欄位（此時已驗證成功）
+            required_fields = ['username', 'email', 'first_name', 'last_name', 'password']
             missing_fields = [field for field in required_fields if not data.get(field)]
-            
             if missing_fields:
                 return jsonify({
                     'success': False,
@@ -264,30 +263,3 @@ class RegisterApi(BaseApi):
                 'message': f'檢查失敗: {str(e)}'
             }), 500
     
-    @expose('/recaptcha-config', methods=['GET'])
-    def get_recaptcha_config(self):
-        """
-        獲取 reCAPTCHA 公鑰配置
-        
-        GET /api/register/recaptcha-config
-        """
-        try:
-            public_key = current_app.config.get('RECAPTCHA_PUBLIC_KEY', '')
-            
-            return jsonify({
-                'success': True,
-                'data': {
-                    'site_key': public_key,
-                    'enabled': bool(public_key)
-                }
-            }), 200
-            
-        except Exception as e:
-            return jsonify({
-                'success': False,
-                'message': f'獲取配置失敗: {str(e)}',
-                'data': {
-                    'site_key': '',
-                    'enabled': False
-                }
-            }), 500

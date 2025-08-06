@@ -14,7 +14,6 @@ class ChatRoomManageView(ChatBaseView):
     
     
     @expose('/create', methods=['POST'])
-    @has_access
     def create_room(self):
         try:
             current_user_obj = self._get_current_user()
@@ -65,7 +64,6 @@ class ChatRoomManageView(ChatBaseView):
             return jsonify({'error': str(e)}), 500
     
     @expose('/list', methods=['GET'])
-    @has_access
     def list_rooms(self):
         try:
             current_user_obj = self._get_current_user()
@@ -105,7 +103,6 @@ class ChatRoomManageView(ChatBaseView):
             return jsonify({'error': str(e)}), 500
     
     @expose('/join/<int:room_id>', methods=['POST'])
-    @has_access
     def join_room(self, room_id):
         try:
             current_user_obj = self._get_current_user()
@@ -137,7 +134,6 @@ class ChatRoomManageView(ChatBaseView):
             return jsonify({'error': str(e)}), 500
     
     @expose('/leave/<int:room_id>', methods=['POST'])
-    @has_access
     def leave_room(self, room_id):
         try:
             current_user_obj = self._get_current_user()
@@ -175,7 +171,6 @@ class ChatRoomManageView(ChatBaseView):
             return jsonify({'error': str(e)}), 500
     
     @expose('/members/<int:room_id>', methods=['GET'])
-    @has_access
     def get_room_members(self, room_id):
         try:
             current_user_obj = self._get_current_user()

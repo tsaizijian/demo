@@ -27,9 +27,11 @@ SQLALCHEMY_TRACK_MODIFICATIONS = False
 # Flask-WTF flag for CSRF
 CSRF_ENABLED = True
 
-# RECAPTCHA Configuration (臨時禁用用於測試)
-RECAPTCHA_PUBLIC_KEY = ""  # 空值會禁用 reCAPTCHA
-RECAPTCHA_PRIVATE_KEY = ""  # 空值會禁用 reCAPTCHA
+# RECAPTCHA Configuration (可選)
+RECAPTCHA_PUBLIC_KEY = os.getenv("APP_RECAPTCHA_SITE")
+
+RECAPTCHA_PRIVATE_KEY = os.getenv("APP_RECAPTCHA_SECRET")
+
 
 
 # ----------------------------------------------------

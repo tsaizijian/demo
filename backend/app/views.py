@@ -9,7 +9,9 @@ from .chatroom import ChatRoomManageView
 from .message import MessageManageView
 from .private_message import PrivateMessageView as PrivateMessageManageView, UserStatusView as UserStatusManageView
 from .admin import AdminView
-from .user_api import RegisterApi
+from .register_api import RegisterApi
+from .auth_api import AuthApi
+from .test_api import TestApi
 
 
 
@@ -169,6 +171,12 @@ appbuilder.add_view_no_menu(AdminView())
 
 # 用户注册 API
 appbuilder.add_api(RegisterApi)
+
+# 認證 API
+appbuilder.add_api(AuthApi)
+
+# 測試 API
+appbuilder.add_api(TestApi)
 
 
 
