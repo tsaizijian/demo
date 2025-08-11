@@ -2,7 +2,8 @@ import { io, Socket } from 'socket.io-client'
 import { useUserStore } from '~/stores/user'
 import { useChatStore } from '~/stores/chat'
 
-let socket: Socket | null = null
+// 創建全局響應式socket引用
+const socket = ref<Socket | null>(null)
 
 export const useSocket = () => {
   const config = useRuntimeConfig()
@@ -10,8 +11,8 @@ export const useSocket = () => {
   const chatStore = useChatStore()
 
   const connect = () => {
-    if (socket?.connected) {
-      return socket
+    if (socket.value?.connected) {
+      return socket.value
     }
 
     // 確保有認證token
@@ -22,7 +23,7 @@ export const useSocket = () => {
 
     console.log('正在建立Socket連接...')
     
-    socket = io(config.public.apiBase, {
+    socket.value = io(config.public.apiBase, {
       transports: ['websocket', 'polling'],
       autoConnect: true,
       withCredentials: true,
@@ -32,17 +33,17 @@ export const useSocket = () => {
     })
 
     // 連接事件
-    socket.on('connect', () => {
-      console.log('Socket已連接:', socket?.id)
+    socket.value.on('connect', () => {
+      console.log('Socket已連接:', socket.value?.id)
       chatStore.setConnectionStatus(true)
     })
 
-    socket.on('disconnect', (reason) => {
+    socket.value.on('disconnect', (reason) => {
       console.log('Socket已斷線:', reason)
       chatStore.setConnectionStatus(false)
     })
 
-    socket.on('connect_error', (error) => {
+    socket.value.on('connect_error', (error) => {
       console.error('Socket連接錯誤:', error)
       chatStore.setConnectionStatus(false)
       
@@ -55,33 +56,33 @@ export const useSocket = () => {
     })
 
     // 訊息事件
-    socket.on('new_message', (messageData) => {
+    socket.value.on('new_message', (messageData) => {
       console.log('收到新訊息:', messageData)
       chatStore.addMessage(messageData)
     })
 
-    socket.on('message_deleted', (data) => {
+    socket.value.on('message_deleted', (data) => {
       console.log('訊息已刪除:', data.message_id)
       chatStore.removeMessage(data.message_id)
     })
 
     // 使用者事件
-    socket.on('user_joined', (data) => {
+    socket.value.on('user_joined', (data) => {
       console.log('使用者加入:', data.display_name)
       chatStore.addSystemMessage(`${data.display_name} 加入聊天室`)
     })
 
-    socket.on('user_left', (data) => {
+    socket.value.on('user_left', (data) => {
       console.log('使用者離開:', data.display_name)
       chatStore.addSystemMessage(`${data.display_name} 離開聊天室`)
     })
 
-    socket.on('online_users', (users) => {
+    socket.value.on('online_users', (users) => {
       console.log('更新線上使用者:', users.length, '人')
       chatStore.setOnlineUsers(users)
     })
 
-    socket.on('user_typing', (data) => {
+    socket.value.on('user_typing', (data) => {
       if (data.is_typing) {
         chatStore.addTypingUser(data.display_name)
       } else {
@@ -90,77 +91,77 @@ export const useSocket = () => {
     })
 
     // 錯誤處理
-    socket.on('error', (error) => {
+    socket.value.on('error', (error) => {
       console.error('Socket錯誤:', error)
       chatStore.setError(error.message || '連接發生錯誤')
     })
 
-    return socket
+    return socket.value
   }
 
   const disconnect = () => {
-    if (socket) {
+    if (socket.value) {
       console.log('正在斷開Socket連接...')
-      socket.disconnect()
-      socket = null
+      socket.value.disconnect()
+      socket.value = null
       chatStore.setConnectionStatus(false)
     }
   }
 
   const sendMessage = (content: string) => {
-    if (!socket?.connected) {
+    if (!socket.value?.connected) {
       console.warn('Socket未連接，無法發送訊息')
       return false
     }
 
-    socket.emit('send_message', { content })
+    socket.value.emit('send_message', { content })
     return true
   }
 
   const deleteMessage = (messageId: number) => {
-    if (!socket?.connected) {
+    if (!socket.value?.connected) {
       console.warn('Socket未連接，無法刪除訊息')
       return false
     }
 
-    socket.emit('delete_message', { message_id: messageId })
+    socket.value.emit('delete_message', { message_id: messageId })
     return true
   }
 
   const setTyping = (isTyping: boolean) => {
-    if (!socket?.connected) {
+    if (!socket.value?.connected) {
       return
     }
 
-    socket.emit('typing', { is_typing: isTyping })
+    socket.value.emit('typing', { is_typing: isTyping })
   }
 
   const joinRoom = (room: string = 'general') => {
-    if (!socket?.connected) {
+    if (!socket.value?.connected) {
       return
     }
 
-    socket.emit('join_room', { room })
+    socket.value.emit('join_room', { room })
   }
 
   const leaveRoom = (room: string = 'general') => {
-    if (!socket?.connected) {
+    if (!socket.value?.connected) {
       return
     }
 
-    socket.emit('leave_room', { room })
+    socket.value.emit('leave_room', { room })
   }
 
   const getOnlineUsers = () => {
-    if (!socket?.connected) {
+    if (!socket.value?.connected) {
       return
     }
 
-    socket.emit('get_online_users')
+    socket.value.emit('get_online_users')
   }
 
   const isConnected = () => {
-    return socket?.connected || false
+    return socket.value?.connected || false
   }
 
   return {
@@ -173,6 +174,6 @@ export const useSocket = () => {
     leaveRoom,
     getOnlineUsers,
     isConnected,
-    socket: readonly(ref(socket))
+    socket
   }
 }

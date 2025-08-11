@@ -75,7 +75,7 @@ class ChatMessageApi(ModelRestApi):
     def send_message(self):
         """
         發送新訊息
-        POST /api/v1/chatmessage/send
+        POST /api/v1/chatmessageapi/send
         """
         try:
             data = request.get_json()
@@ -91,7 +91,12 @@ class ChatMessageApi(ModelRestApi):
                 message_type=data.get('message_type', 'text'),
                 attachment_path=data.get('attachment_path'),
                 reply_to_id=data.get('reply_to_id'),
-                channel_id=data.get('channel_id', 1)
+                channel_id=data.get('channel_id', 1),
+                # 手動設定 AuditMixin 欄位
+                created_by_fk=g.user.id,
+                changed_by_fk=g.user.id,
+                created_on=datetime.datetime.utcnow(),
+                changed_on=datetime.datetime.utcnow()
             )
 
             # 儲存到資料庫
@@ -111,7 +116,7 @@ class ChatMessageApi(ModelRestApi):
     def message_history(self):
         """
         取得歷史訊息 (分頁)
-        GET /api/v1/chatmessage/history?page=1&per_page=20&before_id=100
+        GET /api/v1/chatmessageapi/history?page=1&per_page=20&before_id=100
         """
         page = request.args.get('page', 1, type=int)
         per_page = min(request.args.get('per_page', 20, type=int), 100)
@@ -152,7 +157,7 @@ class ChatMessageApi(ModelRestApi):
     def soft_delete_message(self, message_id):
         """
         軟刪除訊息 (只有發送者或管理員可刪除)
-        POST /api/v1/chatmessage/delete/123
+        POST /api/v1/chatmessageapi/delete/123
         """
         message = self.datamodel.get(message_id)
 
@@ -197,7 +202,7 @@ class UserProfileApi(ModelRestApi):
     def get_my_profile(self):
         """
         取得當前使用者的個人資料
-        GET /api/v1/userprofile/me
+        GET /api/v1/userprofileapi/me
         """
         profile = (
             self.datamodel.session.query(UserProfile)
@@ -223,7 +228,7 @@ class UserProfileApi(ModelRestApi):
     def update_my_profile(self):
         """
         更新當前使用者的個人資料
-        POST /api/v1/userprofile/update-profile
+        POST /api/v1/userprofileapi/update-profile
         """
         try:
             data = request.get_json()
@@ -259,7 +264,7 @@ class UserProfileApi(ModelRestApi):
     def get_online_users(self):
         """
         取得線上使用者列表
-        GET /api/v1/userprofile/online-users
+        GET /api/v1/userprofileapi/online-users
         """
         online_profiles = (
             self.datamodel.session.query(UserProfile)
@@ -278,7 +283,7 @@ class UserProfileApi(ModelRestApi):
     def set_online_status(self):
         """
         設定線上狀態
-        POST /api/v1/userprofile/set-online-status
+        POST /api/v1/userprofileapi/set-online-status
         """
         try:
             data = request.get_json()

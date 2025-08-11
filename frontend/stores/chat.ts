@@ -83,7 +83,7 @@ export const useChatStore = defineStore('chat', {
       try {
         const config = useRuntimeConfig()
         
-        const response = await $fetch(`${config.public.apiBase}/api/v1/chatmessageapi/`, {
+        const response = await $fetch(`${config.public.apiBase}/api/v1/chatmessageapi/send`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${userStore.accessToken}`,

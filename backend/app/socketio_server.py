@@ -148,7 +148,9 @@ def on_disconnect():
 @socketio.on('send_message')
 def handle_message(data):
     """處理發送訊息"""
-    if not current_user or not current_user.is_authenticated:
+    # 從 online_users 中取得使用者資訊（因為 Socket.IO 可能無法直接使用 current_user）
+    user_info = online_users.get(request.sid)
+    if not user_info:
         emit('error', {'message': '未認證使用者'})
         return
     
@@ -157,16 +159,29 @@ def handle_message(data):
         emit('error', {'message': '訊息內容不能為空'})
         return
     
-    user_id = current_user.id
-    username = current_user.username
-    display_name = getattr(current_user, 'first_name', None) or username
+    user_id = user_info['user_id']
+    username = user_info['username']
+    display_name = user_info['display_name']
     
     # 儲存訊息到資料庫
     try:
+        # 取得使用者物件以便設定 AuditMixin 欄位
+        User = appbuilder.sm.user_model
+        user = db.session.query(User).filter_by(id=user_id).first()
+        
+        if not user:
+            emit('error', {'message': '使用者不存在'})
+            return
+        
         new_message = ChatMessage(
             content=content,
             sender_id=user_id,
-            channel_id=1  # 預設頻道
+            channel_id=1,  # 預設頻道
+            # 手動設定 AuditMixin 欄位
+            created_by_fk=user_id,
+            changed_by_fk=user_id,
+            created_on=datetime.utcnow(),
+            changed_on=datetime.utcnow()
         )
         
         db.session.add(new_message)

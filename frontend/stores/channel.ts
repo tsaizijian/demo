@@ -1,4 +1,6 @@
 import { defineStore } from 'pinia'
+import { useSocket } from '~/composables/useSocket'
+import { useUserStore } from './user'
 
 interface Channel {
   id: number
@@ -147,8 +149,8 @@ export const useChannelStore = defineStore('channel', {
       
       // 通知 Socket.IO 切換房間
       const socketStore = useSocket()
-      if (socketStore.socket) {
-        socketStore.socket.emit('join_channel', { channel_id: channelId })
+      if (socketStore.socket.value) {
+        socketStore.socket.value.emit('join_channel', { channel_id: channelId })
       }
       
       return { success: true }
