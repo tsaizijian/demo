@@ -175,157 +175,219 @@ onMounted(() => {
 });
 </script>
 
+<style scoped>
+.registration-form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.form-group {
+  margin-bottom: 15px;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  justify-content: space-between;
+  font-weight: 550;
+}
+
+.form-label {
+  display: block;
+  font-weight: 550;
+  color: #374151;
+  min-width: 100px;
+  text-align: left;
+}
+
+.input-text {
+  padding: 5px;
+  margin-left: 10px;
+  width: 280px;
+}
+
+.error-text {
+  color: #dc2626;
+  font-size: 0.875rem;
+  margin-top: 4px;
+  margin-left: 110px;
+  width: 280px;
+  text-align: left;
+}
+
+.button-group {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  margin-top: 2rem;
+}
+
+.cancel-button {
+  padding: 0 2rem;
+}
+
+.register-button {
+  padding: 0 2rem;
+}
+
+h2 {
+  text-align: center;
+  color: #1f2937;
+}
+</style>
+
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-    <div class="max-w-md w-full space-y-8">
-      <!-- Logo 和標題 -->
-      <div class="text-center">
-        <div class="mx-auto w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mb-4">
-          <UIcon name="i-heroicons-chat-bubble-left-right" class="w-8 h-8 text-white" />
-        </div>
-        <h2 class="text-3xl font-bold text-gray-900 mb-2">加入聊天室</h2>
-        <p class="text-gray-600">創建您的帳號，開始與大家聊天</p>
-      </div>
-
-      <!-- 註冊表單 -->
-      <UCard class="shadow-xl">
-        <form @submit.prevent="handleRegister" class="space-y-4">
-          
-          <!-- 使用者名稱 -->
-          <div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
-                使用者名稱 <span class="text-red-500">*</span>
-              </label>
-              <UInput
-                v-model="form.username"
-                placeholder="請輸入使用者名稱"
-                :loading="checkingUsername"
-                :disabled="loading"
-                icon="i-heroicons-user"
-              />
-              <p v-if="errors.username" class="mt-1 text-sm text-red-600">{{ errors.username }}</p>
-              <p class="mt-1 text-xs text-gray-500">使用者名稱必須是獨一無二的，至少3個字元，只能包含字母、數字和底線</p>
-            </div>
+  <div class="min-h-screen flex items-center justify-center py-12 px-4 bg-gray-50">
+    <div class="mx-auto max-w-md w-full">
+      <UCard class="shadow-lg border border-gray-200">
+        <template #header>
+          <div class="text-center">
+            <h2 class="text-2xl font-semibold text-gray-900 mb-2">註冊新帳號</h2>
+            <hr class="border-gray-200" />
           </div>
+        </template>
 
-          <!-- 姓名 -->
-          <div class="grid grid-cols-2 gap-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
-                名字 <span class="text-red-500">*</span>
-              </label>
-              <UInput
-                v-model="form.first_name"
-                placeholder="名字"
-                :disabled="loading"
-                icon="i-heroicons-identification"
-              />
-              <p v-if="errors.first_name" class="mt-1 text-sm text-red-600">{{ errors.first_name }}</p>
-            </div>
-            
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
-                姓氏 <span class="text-red-500">*</span>
-              </label>
-              <UInput
-                v-model="form.last_name"
-                placeholder="姓氏"
-                :disabled="loading"
-              />
-              <p v-if="errors.last_name" class="mt-1 text-sm text-red-600">{{ errors.last_name }}</p>
-            </div>
-          </div>
-
-          <!-- 電子郵件 -->
-          <div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
-                電子郵件 <span class="text-red-500">*</span>
-              </label>
-              <UInput
-                v-model="form.email"
-                type="email"
-                placeholder="請輸入電子郵件"
-                :disabled="loading"
-                icon="i-heroicons-envelope"
-              />
-              <p v-if="errors.email" class="mt-1 text-sm text-red-600">{{ errors.email }}</p>
-            </div>
-          </div>
-
-          <!-- 密碼 -->
-          <div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
-                密碼 <span class="text-red-500">*</span>
-              </label>
-              <UInput
-                v-model="form.password"
-                :type="showPassword ? 'text' : 'password'"
-                placeholder="請輸入密碼"
-                :disabled="loading"
-                icon="i-heroicons-lock-closed"
-              >
-                <template #trailing>
-                  <UButton
-                    @click="showPassword = !showPassword"
-                    variant="ghost"
-                    size="xs"
-                    :icon="showPassword ? 'i-heroicons-eye-slash' : 'i-heroicons-eye'"
-                  />
-                </template>
-              </UInput>
-              <p v-if="errors.password" class="mt-1 text-sm text-red-600">{{ errors.password }}</p>
-            </div>
-          </div>
-
-          <!-- 確認密碼 -->
-          <div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
-                確認密碼 <span class="text-red-500">*</span>
-              </label>
-              <UInput
-                v-model="form.confirmPassword"
-                :type="showConfirmPassword ? 'text' : 'password'"
-                placeholder="請再次輸入密碼"
-                :disabled="loading"
-                icon="i-heroicons-lock-closed"
-              >
-                <template #trailing>
-                  <UButton
-                    @click="showConfirmPassword = !showConfirmPassword"
-                    variant="ghost"
-                    size="xs"
-                    :icon="showConfirmPassword ? 'i-heroicons-eye-slash' : 'i-heroicons-eye'"
-                  />
-                </template>
-              </UInput>
-              <p v-if="errors.confirmPassword" class="mt-1 text-sm text-red-600">{{ errors.confirmPassword }}</p>
-            </div>
-          </div>
-
-          <!-- 密碼強度指示 -->
-          <div v-if="form.password" class="text-xs text-gray-500">
-            <div class="flex items-center gap-2 mt-1">
-              <div class="flex space-x-1">
-                <div 
-                  v-for="i in 4" 
-                  :key="i"
-                  class="w-2 h-2 rounded-full"
-                  :class="{
-                    'bg-red-300': form.password.length < 6,
-                    'bg-green-300': form.password.length >= 6,
-                    'bg-gray-200': form.password.length === 0
-                  }"
+        <div class="registration-form">
+          <form @submit.prevent="handleRegister">
+            <!-- 名字 -->
+            <div class="form-group">
+              <label for="first_name" class="form-label">名字 *</label>
+              <div class="input-text">
+                <UInput
+                  id="first_name"
+                  v-model="form.first_name"
+                  type="text"
+                  placeholder="請輸入名字"
+                  :disabled="loading"
+                  class="w-full"
                 />
               </div>
-              <span class="text-xs">
-                {{ form.password.length < 6 ? '弱' : '強' }}
-              </span>
             </div>
-          </div>
+            <p v-if="errors.first_name" class="error-text">{{ errors.first_name }}</p>
+
+            <!-- 姓氏 -->
+            <div class="form-group">
+              <label for="last_name" class="form-label">姓氏 *</label>
+              <div class="input-text">
+                <UInput
+                  id="last_name"
+                  v-model="form.last_name"
+                  type="text"
+                  placeholder="請輸入姓氏"
+                  :disabled="loading"
+                  class="w-full"
+                />
+              </div>
+            </div>
+            <p v-if="errors.last_name" class="error-text">{{ errors.last_name }}</p>
+
+            <!-- 電子郵件 -->
+            <div class="form-group">
+              <label for="email" class="form-label">電子郵件 *</label>
+              <div class="input-text">
+                <UInput
+                  id="email"
+                  v-model="form.email"
+                  type="email"
+                  placeholder="請輸入電子郵件"
+                  :disabled="loading"
+                  class="w-full"
+                />
+              </div>
+            </div>
+            <p v-if="errors.email" class="error-text">{{ errors.email }}</p>
+
+            <!-- 登入帳號 -->
+            <div class="form-group">
+              <label for="username" class="form-label">登入帳號 *</label>
+              <div class="input-text">
+                <UInput
+                  id="username"
+                  v-model="form.username"
+                  type="text"
+                  placeholder="聊天室使用帳號"
+                  :disabled="loading"
+                  :loading="checkingUsername"
+                  class="w-full"
+                />
+              </div>
+            </div>
+            <p v-if="errors.username" class="error-text">{{ errors.username }}</p>
+
+            <!-- 帳號密碼 -->
+            <div class="form-group">
+              <label for="password" class="form-label">帳號密碼 *</label>
+              <div class="input-text">
+                <UInput
+                  id="password"
+                  v-model="form.password"
+                  :type="showPassword ? 'text' : 'password'"
+                  placeholder="聊天室帳號密碼"
+                  :disabled="loading"
+                  autocomplete="new-password"
+                  class="w-full"
+                >
+                  <template #trailing>
+                    <UButton
+                      @click="showPassword = !showPassword"
+                      variant="ghost"
+                      size="xs"
+                      :icon="showPassword ? 'i-heroicons-eye-slash' : 'i-heroicons-eye'"
+                    />
+                  </template>
+                </UInput>
+              </div>
+            </div>
+            <p v-if="errors.password" class="error-text">{{ errors.password }}</p>
+
+            <!-- 重複密碼 -->
+            <div class="form-group">
+              <label for="repassword" class="form-label">重複密碼 *</label>
+              <div class="input-text">
+                <UInput
+                  id="repassword"
+                  v-model="form.confirmPassword"
+                  :type="showConfirmPassword ? 'text' : 'password'"
+                  placeholder="再次輸入密碼"
+                  :disabled="loading"
+                  autocomplete="new-password"
+                  class="w-full"
+                >
+                  <template #trailing>
+                    <UButton
+                      @click="showConfirmPassword = !showConfirmPassword"
+                      variant="ghost"
+                      size="xs"
+                      :icon="showConfirmPassword ? 'i-heroicons-eye-slash' : 'i-heroicons-eye'"
+                    />
+                  </template>
+                </UInput>
+              </div>
+            </div>
+            <p v-if="errors.confirmPassword" class="error-text">{{ errors.confirmPassword }}</p>
+
+            <!-- 按鈕組 -->
+            <div class="button-group">
+              <UButton
+                class="cancel-button"
+                variant="soft"
+                color="gray"
+                @click="$router.push('/login')"
+                :disabled="loading"
+              >
+                取消
+              </UButton>
+              <UButton
+                type="submit"
+                class="register-button"
+                color="primary"
+                :loading="loading"
+                :disabled="loading"
+              >
+                {{ loading ? '註冊中...' : '註冊' }}
+              </UButton>
+            </div>
+          </form>
 
           <!-- 錯誤訊息 -->
           <UAlert
@@ -334,45 +396,10 @@ onMounted(() => {
             color="red"
             variant="soft"
             :title="userStore.error"
-            class="mb-4"
+            class="my-4"
           />
-
-          <!-- 註冊按鈕 -->
-          <UButton
-            type="submit"
-            size="lg"
-            :loading="loading"
-            :disabled="loading"
-            block
-            icon="i-heroicons-user-plus"
-          >
-            {{ loading ? '註冊中...' : '創建帳號' }}
-          </UButton>
-        </form>
+        </div>
       </UCard>
-
-      <!-- 登入連結 -->
-      <div class="text-center">
-        <p class="text-gray-600">
-          已經有帳號了？
-          <NuxtLink 
-            to="/login" 
-            class="font-medium text-blue-600 hover:text-blue-500 transition-colors"
-          >
-            立即登入
-          </NuxtLink>
-        </p>
-      </div>
-
-      <!-- 服務條款 -->
-      <div class="text-center text-xs text-gray-500">
-        <p>
-          註冊即表示您同意我們的
-          <a href="#" class="text-blue-600 hover:text-blue-500">服務條款</a>
-          和
-          <a href="#" class="text-blue-600 hover:text-blue-500">隱私政策</a>
-        </p>
-      </div>
     </div>
   </div>
 </template>
