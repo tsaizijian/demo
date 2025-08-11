@@ -193,12 +193,10 @@ onMounted(() => {
           
           <!-- 使用者名稱 -->
           <div>
-            <UFormGroup 
-              label="使用者名稱" 
-              :error="errors.username"
-              required
-              help="使用者名稱必須是獨一無二的，至少3個字元，只能包含字母、數字和底線"
-            >
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">
+                使用者名稱 <span class="text-red-500">*</span>
+              </label>
               <UInput
                 v-model="form.username"
                 placeholder="請輸入使用者名稱"
@@ -206,44 +204,45 @@ onMounted(() => {
                 :disabled="loading"
                 icon="i-heroicons-user"
               />
-            </UFormGroup>
+              <p v-if="errors.username" class="mt-1 text-sm text-red-600">{{ errors.username }}</p>
+              <p class="mt-1 text-xs text-gray-500">使用者名稱必須是獨一無二的，至少3個字元，只能包含字母、數字和底線</p>
+            </div>
           </div>
 
           <!-- 姓名 -->
           <div class="grid grid-cols-2 gap-4">
-            <UFormGroup 
-              label="名字" 
-              :error="errors.first_name"
-              required
-            >
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">
+                名字 <span class="text-red-500">*</span>
+              </label>
               <UInput
                 v-model="form.first_name"
                 placeholder="名字"
                 :disabled="loading"
                 icon="i-heroicons-identification"
               />
-            </UFormGroup>
+              <p v-if="errors.first_name" class="mt-1 text-sm text-red-600">{{ errors.first_name }}</p>
+            </div>
             
-            <UFormGroup 
-              label="姓氏" 
-              :error="errors.last_name"
-              required
-            >
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">
+                姓氏 <span class="text-red-500">*</span>
+              </label>
               <UInput
                 v-model="form.last_name"
                 placeholder="姓氏"
                 :disabled="loading"
               />
-            </UFormGroup>
+              <p v-if="errors.last_name" class="mt-1 text-sm text-red-600">{{ errors.last_name }}</p>
+            </div>
           </div>
 
           <!-- 電子郵件 -->
           <div>
-            <UFormGroup 
-              label="電子郵件" 
-              :error="errors.email"
-              required
-            >
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">
+                電子郵件 <span class="text-red-500">*</span>
+              </label>
               <UInput
                 v-model="form.email"
                 type="email"
@@ -251,16 +250,16 @@ onMounted(() => {
                 :disabled="loading"
                 icon="i-heroicons-envelope"
               />
-            </UFormGroup>
+              <p v-if="errors.email" class="mt-1 text-sm text-red-600">{{ errors.email }}</p>
+            </div>
           </div>
 
           <!-- 密碼 -->
           <div>
-            <UFormGroup 
-              label="密碼" 
-              :error="errors.password"
-              required
-            >
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">
+                密碼 <span class="text-red-500">*</span>
+              </label>
               <UInput
                 v-model="form.password"
                 :type="showPassword ? 'text' : 'password'"
@@ -277,16 +276,16 @@ onMounted(() => {
                   />
                 </template>
               </UInput>
-            </UFormGroup>
+              <p v-if="errors.password" class="mt-1 text-sm text-red-600">{{ errors.password }}</p>
+            </div>
           </div>
 
           <!-- 確認密碼 -->
           <div>
-            <UFormGroup 
-              label="確認密碼" 
-              :error="errors.confirmPassword"
-              required
-            >
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">
+                確認密碼 <span class="text-red-500">*</span>
+              </label>
               <UInput
                 v-model="form.confirmPassword"
                 :type="showConfirmPassword ? 'text' : 'password'"
@@ -303,7 +302,8 @@ onMounted(() => {
                   />
                 </template>
               </UInput>
-            </UFormGroup>
+              <p v-if="errors.confirmPassword" class="mt-1 text-sm text-red-600">{{ errors.confirmPassword }}</p>
+            </div>
           </div>
 
           <!-- 密碼強度指示 -->

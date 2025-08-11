@@ -1,7 +1,9 @@
 from flask import request
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from flask_login import current_user
+from flask_jwt_extended import decode_token, get_jwt_identity
 from datetime import datetime
+import jwt
 
 from . import app, db, appbuilder
 from .models import ChatMessage
@@ -12,18 +14,91 @@ socketio = SocketIO(app, cors_allowed_origins="http://localhost:3000",
 # 儲存線上使用者
 online_users = {}
 
+# 驗證JWT Token
+def authenticate_socket(auth):
+    """驗證Socket連接的JWT token"""
+    if not auth or 'token' not in auth:
+        return None
+        
+    token = auth['token']
+    if not token:
+        return None
+        
+    try:
+        # 使用Flask-AppBuilder的JWT解碼
+        import jwt
+        
+        # 獲取JWT設定
+        secret_key = app.config.get('SECRET_KEY')
+        algorithm = 'HS256'
+        
+        # 解碼JWT token
+        decoded = jwt.decode(token, secret_key, algorithms=[algorithm])
+        user_id = decoded.get('user_id') or decoded.get('sub')
+        
+        if not user_id:
+            print("Token中沒有找到user_id")
+            return None
+        
+        # 從資料庫獲取使用者 - 使用appbuilder的User模型
+        User = appbuilder.sm.user_model
+        user = db.session.query(User).filter_by(id=user_id).first()
+        
+        if user:
+            print(f"Token驗證成功: {user.username}")
+        else:
+            print(f"找不到用戶ID: {user_id}")
+            
+        return user
+    except jwt.ExpiredSignatureError:
+        print("Token已過期")
+        return None
+    except jwt.InvalidTokenError as e:
+        print(f"Token無效: {e}")
+        return None
+    except Exception as e:
+        print(f"Token驗證失敗: {e}")
+        return None
+
 @socketio.on('connect')
-def on_connect():
+def on_connect(auth):
     """使用者連接"""
-    if not current_user or not current_user.is_authenticated:
+    print(f"Socket連接嘗試，auth: {auth}")
+    
+    # 嘗試使用Socket認證
+    user = authenticate_socket(auth)
+    
+    # 如果Socket認證失敗，嘗試使用current_user（適用於同域Cookie）
+    if not user and current_user and current_user.is_authenticated:
+        user = current_user
+    
+    if not user:
         print(f"未認證使用者嘗試連接: {request.sid}")
         return False
     
-    user_id = current_user.id
-    username = current_user.username
-    display_name = getattr(current_user, 'first_name', None) or username
+    user_id = user.id
+    username = user.username
     
-    # 記錄線上使用者
+    # 使用username作為主要顯示名稱，這樣更一致
+    display_name = username
+    first_name = getattr(user, 'first_name', '') or ''
+    last_name = getattr(user, 'last_name', '') or ''
+        
+    print(f"使用者資訊: username={username}, first_name={first_name}, last_name={last_name}, display_name={display_name}")
+    
+    # 檢查該使用者是否已經在線，如果是，先移除舊連接
+    existing_sids = []
+    for sid, user_info in list(online_users.items()):
+        if user_info['user_id'] == user_id:
+            existing_sids.append(sid)
+    
+    # 移除該使用者的所有舊連接記錄
+    for old_sid in existing_sids:
+        if old_sid in online_users:
+            print(f"移除使用者 {username} 的舊連接: {old_sid}")
+            del online_users[old_sid]
+    
+    # 記錄新的線上使用者
     online_users[request.sid] = {
         'user_id': user_id,
         'username': username,

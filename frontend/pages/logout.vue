@@ -43,7 +43,7 @@ onMounted(async () => {
           <!-- 登出詳情 -->
           <div class="space-y-3 text-left bg-gray-50 rounded-lg p-4 mb-6">
             <div class="flex items-center gap-3 text-sm text-gray-600">
-              <UIcon name="i-heroicons-wifi-slash" class="w-4 h-4 text-gray-400" />
+              <UIcon name="i-heroicons-signal-slash" class="w-4 h-4 text-gray-400" />
               <span>即時連線已斷開</span>
               <UIcon name="i-heroicons-check" class="w-4 h-4 text-green-500 ml-auto" />
             </div>

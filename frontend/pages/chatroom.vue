@@ -1,6 +1,7 @@
 <script setup>
 import { useUserStore } from "~/stores/user";
 import { useChatStore } from "~/stores/chat";
+import { useChannelStore } from "~/stores/channel";
 import { useSocket } from "~/composables/useSocket";
 
 // 設定頁面元資訊
@@ -11,6 +12,7 @@ definePageMeta({
 // Store
 const userStore = useUserStore();
 const chatStore = useChatStore();
+const channelStore = useChannelStore();
 const router = useRouter();
 const { connect, disconnect, sendMessage: socketSendMessage, deleteMessage: socketDeleteMessage, setTyping, isConnected } = useSocket();
 
@@ -18,6 +20,7 @@ const { connect, disconnect, sendMessage: socketSendMessage, deleteMessage: sock
 const newMessage = ref("");
 const sending = ref(false);
 const messagesContainer = ref();
+const showUserMenu = ref(false);
 
 // 登出確認
 const showLogoutModal = ref(false);
@@ -40,25 +43,20 @@ const handleLogout = async () => {
   await userStore.logout();
 };
 
-// 使用者選單
-const userMenuItems = [
-  [
-    {
-      label: "個人設定",
-      icon: "i-heroicons-user-circle",
-      click: () => {
-        // TODO: 開啟個人設定modal
-      },
-    },
-  ],
-  [
-    {
-      label: "登出",
-      icon: "i-heroicons-arrow-right-on-rectangle",
-      click: confirmLogout,
-    },
-  ],
-];
+// 點擊外部關閉選單
+const handleClickOutside = (event) => {
+  if (!event.target.closest('.relative')) {
+    showUserMenu.value = false;
+  }
+};
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside);
+});
 
 // 發送訊息
 const sendMessage = async () => {
@@ -192,13 +190,25 @@ onMounted(async () => {
     return;
   }
 
+  // 檢查是否有token
+  if (!userStore.token) {
+    console.warn("沒有找到認證token，重新導向到登入頁面");
+    await router.push("/login");
+    return;
+  }
+
   // 載入初始資料
-  await Promise.all([chatStore.fetchMessages(), chatStore.fetchOnlineUsers()]);
+  await Promise.all([
+    channelStore.fetchChannels(),
+    chatStore.fetchMessages(), 
+    chatStore.fetchOnlineUsers()
+  ]);
 
   // 滾動到底部
   nextTick(() => scrollToBottom());
 
   // 建立WebSocket連接
+  console.log("準備建立Socket連接，token:", userStore.token ? "已存在" : "不存在");
   const socket = connect();
   
   if (socket) {
@@ -225,7 +235,7 @@ onUnmounted(() => {
 
 // 監聽訊息變化，自動滾動到底部
 watch(
-  () => chatStore.messages.length,
+  () => channelStore.currentChannelMessages.length,
   () => {
     nextTick(() => scrollToBottom());
   }
@@ -238,9 +248,24 @@ watch(
     <header class="bg-white shadow-sm border-b border-gray-200 px-4 py-3">
       <div class="flex items-center justify-between">
         <div class="flex items-center space-x-4">
-          <h1 class="text-xl font-semibold text-gray-900">聊天室</h1>
+          <div class="flex items-center space-x-2">
+            <UIcon 
+              :name="channelStore.currentChannel?.is_private ? 'i-heroicons-lock-closed' : 'i-heroicons-hashtag'" 
+              class="w-5 h-5 text-gray-600"
+            />
+            <h1 class="text-xl font-semibold text-gray-900">
+              {{ channelStore.currentChannel?.name || '聊天室' }}
+            </h1>
+            <UBadge
+              v-if="channelStore.currentChannel?.is_private"
+              label="私人"
+              variant="soft"
+              color="orange"
+              size="xs"
+            />
+          </div>
           <UBadge
-            :label="`${chatStore.onlineUserCount} 人線上`"
+            :label="`${channelStore.currentChannelMembers.length} 人線上`"
             variant="soft"
             color="green"
           />
@@ -262,56 +287,43 @@ watch(
           <div class="text-sm text-gray-600">
             歡迎, {{ userStore.displayName }}
           </div>
-          <UDropdown :items="userMenuItems">
+          <div class="relative">
             <UButton
+              @click="showUserMenu = !showUserMenu"
               variant="ghost"
               :label="userStore.displayName"
               trailing-icon="i-heroicons-chevron-down-20-solid"
             />
-          </UDropdown>
+            <div 
+              v-if="showUserMenu" 
+              class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50"
+            >
+              <div class="py-1">
+                <button
+                  @click="() => { showUserMenu = false; /* TODO: 開啟個人設定 */ }"
+                  class="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  <UIcon name="i-heroicons-user-circle" class="w-4 h-4 mr-2" />
+                  個人設定
+                </button>
+                <button
+                  @click="() => { showUserMenu = false; confirmLogout(); }"
+                  class="flex items-center w-full px-4 py-2 text-sm text-red-700 hover:bg-red-50"
+                >
+                  <UIcon name="i-heroicons-arrow-right-on-rectangle" class="w-4 h-4 mr-2" />
+                  登出
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </header>
 
     <!-- 主要內容區域 -->
     <div class="flex-1 flex overflow-hidden">
-      <!-- 側邊欄 - 線上使用者 -->
-      <aside class="w-64 bg-white border-r border-gray-200 flex flex-col">
-        <div class="p-4 border-b border-gray-200">
-          <h2
-            class="text-sm font-medium text-gray-900 uppercase tracking-wider"
-          >
-            線上使用者
-          </h2>
-        </div>
-
-        <div class="flex-1 overflow-y-auto p-4">
-          <div
-            v-if="chatStore.onlineUsers.length === 0"
-            class="text-sm text-gray-500 text-center"
-          >
-            正在載入...
-          </div>
-
-          <div v-else class="space-y-2">
-            <div
-              v-for="user in chatStore.onlineUsers"
-              :key="user.id"
-              class="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50"
-            >
-              <div class="w-2 h-2 bg-green-500 rounded-full"></div>
-              <div class="flex-1 min-w-0">
-                <div class="text-sm font-medium text-gray-900 truncate">
-                  {{ user.display_name || user.username }}
-                </div>
-                <div class="text-xs text-gray-500" v-if="user.last_seen">
-                  {{ formatTime(user.last_seen) }}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </aside>
+      <!-- 頻道側邊欄 -->
+      <ChannelSidebar />
 
       <!-- 聊天區域 -->
       <main class="flex-1 flex flex-col">
@@ -322,24 +334,24 @@ watch(
           @scroll="handleScroll"
         >
           <!-- 載入指示器 -->
-          <div v-if="chatStore.loading" class="text-center py-4">
+          <div v-if="channelStore.loading || chatStore.loading" class="text-center py-4">
             <UIcon name="i-heroicons-arrow-path" class="animate-spin h-6 w-6" />
             <div class="text-sm text-gray-500 mt-2">載入中...</div>
           </div>
 
           <!-- 錯誤訊息 -->
           <UAlert
-            v-if="chatStore.error"
+            v-if="channelStore.error || chatStore.error"
             icon="i-heroicons-exclamation-triangle"
             color="red"
             variant="soft"
-            :title="chatStore.error"
+            :title="channelStore.error || chatStore.error"
             class="mb-4"
           />
 
           <!-- 沒有訊息 -->
           <div
-            v-if="!chatStore.loading && chatStore.messages.length === 0"
+            v-if="!channelStore.loading && channelStore.currentChannelMessages.length === 0"
             class="text-center py-12"
           >
             <UIcon
@@ -351,7 +363,7 @@ watch(
 
           <!-- 訊息列表 -->
           <div
-            v-for="message in chatStore.sortedMessages"
+            v-for="message in channelStore.currentChannelMessages"
             :key="message.id"
             class="flex space-x-3"
             :class="{
@@ -469,22 +481,36 @@ watch(
     </div>
 
     <!-- 登出確認對話框 -->
-    <UModal v-model="showLogoutModal">
-      <UCard :ui="{ ring: '', divide: 'divide-y divide-gray-100 dark:divide-gray-800' }">
+    <UModal 
+      v-model="showLogoutModal"
+      :ui="{ 
+        overlay: { background: 'bg-gray-200/75 dark:bg-gray-800/75' },
+        container: 'items-center'
+      }"
+    >
+      <UCard 
+        :ui="{ 
+          ring: '', 
+          divide: 'divide-y divide-gray-100 dark:divide-gray-800',
+          header: { padding: 'px-4 py-4' },
+          body: { padding: 'px-4' },
+          footer: { padding: 'px-4 py-4' }
+        }"
+      >
         <template #header>
           <div class="flex items-center gap-2">
             <UIcon name="i-heroicons-exclamation-triangle" class="w-5 h-5 text-amber-500" />
-            <h3 class="text-lg font-semibold text-gray-900">確認登出</h3>
+            <h3 id="logout-dialog-title" class="text-lg font-semibold text-gray-900">確認登出</h3>
           </div>
         </template>
 
         <div class="py-4">
-          <p class="text-sm text-gray-600">
+          <p id="logout-dialog-description" class="text-sm text-gray-600">
             您確定要登出聊天室嗎？這將會：
           </p>
           <ul class="mt-3 space-y-1 text-sm text-gray-500">
             <li class="flex items-center gap-2">
-              <UIcon name="i-heroicons-wifi-slash" class="w-4 h-4" />
+              <UIcon name="i-heroicons-signal-slash" class="w-4 h-4" />
               斷開即時連線
             </li>
             <li class="flex items-center gap-2">
@@ -518,5 +544,11 @@ watch(
         </template>
       </UCard>
     </UModal>
+
+    <!-- 頻道建立對話框 -->
+    <CreateChannelModal />
+    
+    <!-- 頻道設定對話框 -->
+    <ChannelSettingsModal />
   </div>
 </template>

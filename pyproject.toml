@@ -8,5 +8,6 @@ dependencies = [
     "flask-appbuilder>=4.8.0",
     "flask-cors>=6.0.1",
     "flask-socketio>=5.5.1",
+    "pyjwt>=2.10.1",
     "python-dotenv>=1.1.1",
 ]

@@ -26,28 +26,32 @@
 
           <!-- 使用者名稱 -->
           <div>
-            <UFormGroup label="使用者名稱" name="username" required>
-              <UInput
-                v-model="form.username"
-                type="text"
-                placeholder="請輸入使用者名稱"
-                :disabled="userStore.loading"
-                required
-              />
-            </UFormGroup>
+            <label for="username" class="block text-sm font-medium text-gray-700 mb-1">
+              使用者名稱
+            </label>
+            <UInput
+              id="username"
+              v-model="form.username"
+              type="text"
+              placeholder="請輸入使用者名稱"
+              :disabled="userStore.loading"
+              required
+            />
           </div>
 
           <!-- 密碼 -->
           <div>
-            <UFormGroup label="密碼" name="password" required>
-              <UInput
-                v-model="form.password"
-                type="password"
-                placeholder="請輸入密碼"
-                :disabled="userStore.loading"
-                required
-              />
-            </UFormGroup>
+            <label for="password" class="block text-sm font-medium text-gray-700 mb-1">
+              密碼
+            </label>
+            <UInput
+              id="password"
+              v-model="form.password"
+              type="password"
+              placeholder="請輸入密碼"
+              :disabled="userStore.loading"
+              required
+            />
           </div>
 
           <!-- 記住我 -->

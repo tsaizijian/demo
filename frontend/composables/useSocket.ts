@@ -26,8 +26,8 @@ export const useSocket = () => {
       transports: ['websocket', 'polling'],
       autoConnect: true,
       withCredentials: true,
-      extraHeaders: {
-        'Authorization': `Bearer ${userStore.token}`
+      auth: {
+        token: userStore.token
       }
     })
 
@@ -45,6 +45,13 @@ export const useSocket = () => {
     socket.on('connect_error', (error) => {
       console.error('Socket連接錯誤:', error)
       chatStore.setConnectionStatus(false)
+      
+      // 如果是認證錯誤，可能是token過期，嘗試重新登入
+      if (error.message && error.message.includes('rejected')) {
+        console.warn('連接被拒絕，可能是token過期，請重新登入')
+        // 清除過期token
+        userStore.logout()
+      }
     })
 
     // 訊息事件

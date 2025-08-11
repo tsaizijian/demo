@@ -48,6 +48,10 @@ export const useUserStore = defineStore('user', {
         return `${state.currentUser.first_name} ${state.currentUser.last_name}`.trim()
       }
       return state.userProfile?.username || '訪客'
+    },
+    
+    token: (state): string | null => {
+      return state.accessToken
     }
   },
 
@@ -59,7 +63,7 @@ export const useUserStore = defineStore('user', {
       try {
         const config = useRuntimeConfig()
         
-        const response = await $fetch(`${config.public.apiBase}/api/v1/security/login`, {
+        const response = await $fetch(`${config.public.apiBase}/api/v1/auth/login`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -239,9 +243,26 @@ export const useUserStore = defineStore('user', {
       if (process.client) {
         const token = localStorage.getItem('access_token')
         if (token) {
-          this.accessToken = token
-          this.isAuthenticated = true
-          this.fetchUserProfile()
+          // 檢查token是否過期
+          try {
+            const payload = JSON.parse(atob(token.split('.')[1]))
+            const currentTime = Math.floor(Date.now() / 1000)
+            
+            if (payload.exp && payload.exp > currentTime) {
+              // Token未過期
+              this.accessToken = token
+              this.isAuthenticated = true
+              this.fetchUserProfile()
+            } else {
+              // Token已過期，清除並導向登入
+              console.warn('Token已過期，請重新登入')
+              this.logout()
+            }
+          } catch (error) {
+            // Token格式錯誤，清除
+            console.error('Token格式錯誤:', error)
+            this.logout()
+          }
         }
       }
     }

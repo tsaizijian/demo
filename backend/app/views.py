@@ -11,9 +11,9 @@ appbuilder.add_api(ChatMessageApi)
 appbuilder.add_api(UserProfileApi)
 appbuilder.add_api(ChatChannelApi)
 
-# Import and register RegisterApi
-from .register_api import RegisterApi
-appbuilder.add_api(RegisterApi)
+# Import and register security APIs
+from .security_apis import JWTAuthApi, RegisterApi
+appbuilder.add_api(JWTAuthApi)
 
 
 # Create Model Views for Admin Interface

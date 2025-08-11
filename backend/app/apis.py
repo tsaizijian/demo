@@ -314,6 +314,17 @@ class ChatChannelApi(ModelRestApi):
     datamodel = SQLAInterface(ChatChannel)
 
     allow_browser_login = True
+    
+    # 設定基本權限，允許已認證使用者存取
+    base_permissions = [
+        'can_get',
+        'can_put', 
+        'can_post',
+        'can_delete',
+        'can_get_public_channels',
+        'can_create_channel',
+        'can_get_my_channels'
+    ]
 
     # 簡化欄位配置
     list_columns = ['id', 'name', 'description', 'is_active', 'created_on']
@@ -335,6 +346,10 @@ class ChatChannelApi(ModelRestApi):
         取得公開頻道列表
         GET /api/v1/chatchannel/public-channels
         """
+        # 簡單的認證檢查
+        if not hasattr(g, 'user') or not g.user:
+            return jsonify({'error': '未登入'}), 401
+            
         channels = (
             self.datamodel.session.query(ChatChannel)
             .filter(ChatChannel.is_private == False)
@@ -356,6 +371,22 @@ class ChatChannelApi(ModelRestApi):
         POST /api/v1/chatchannel/create-channel
         """
         try:
+            # 詳細的認證檢查
+            if not hasattr(g, 'user') or not g.user:
+                print("認證失敗: g.user 不存在")
+                return jsonify({'error': '未登入或認證失敗'}), 401
+            
+            # 檢查是否為匿名使用者
+            if g.user.__class__.__name__ == 'AnonymousUserMixin':
+                print("認證失敗: 使用者為 AnonymousUserMixin")
+                return jsonify({'error': '未認證使用者'}), 401
+            
+            # 檢查使用者是否有 id 屬性
+            if not hasattr(g.user, 'id'):
+                print(f"認證失敗: 使用者物件沒有 id 屬性, 類型: {type(g.user)}")
+                return jsonify({'error': '使用者物件無效'}), 401
+                
+            print(f"認證成功: user_id={g.user.id}, username={getattr(g.user, 'username', 'N/A')}")
             data = request.get_json()
 
             # 驗證必要欄位
@@ -371,7 +402,12 @@ class ChatChannelApi(ModelRestApi):
                 max_members=data.get('max_members', 100)
             )
 
-            self.datamodel.add(channel)
+            # 使用直接的資料庫操作
+            self.datamodel.session.add(channel)
+            self.datamodel.session.commit()
+            
+            # 重新整理以取得資料庫分配的ID
+            self.datamodel.session.refresh(channel)
 
             return jsonify({
                 'message': '頻道建立成功',
@@ -379,6 +415,12 @@ class ChatChannelApi(ModelRestApi):
             }), 201
 
         except Exception as e:
+            # 回滾資料庫變更
+            self.datamodel.session.rollback()
+            # 印出詳細錯誤供調試
+            import traceback
+            print(f"建立頻道時發生錯誤: {str(e)}")
+            print(f"錯誤堆疊: {traceback.format_exc()}")
             return jsonify({'error': f'建立失敗: {str(e)}'}), 500
 
     @expose('/my-channels')
@@ -388,6 +430,10 @@ class ChatChannelApi(ModelRestApi):
         取得我建立的頻道
         GET /api/v1/chatchannel/my-channels
         """
+        # 簡單的認證檢查
+        if not hasattr(g, 'user') or not g.user:
+            return jsonify({'error': '未登入'}), 401
+            
         channels = (
             self.datamodel.session.query(ChatChannel)
             .filter(ChatChannel.creator_id == g.user.id)

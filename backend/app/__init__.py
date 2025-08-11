@@ -4,6 +4,9 @@ from flask import Flask
 from flask_appbuilder import AppBuilder, SQLA
 from flask_cors import CORS
 
+# 匯入自訂的安全管理器
+from .auth import JWTSecurityManager
+
 """
  Logging configuration
 """
@@ -18,7 +21,8 @@ app.config.from_object("config")
 CORS(app, origins=["http://localhost:3000"], supports_credentials=True)
 
 db = SQLA(app)
-appbuilder = AppBuilder(app, db.session)
+# 使用自訂的 JWT 安全管理器
+appbuilder = AppBuilder(app, db.session, security_manager_class=JWTSecurityManager)
 
 
 """
