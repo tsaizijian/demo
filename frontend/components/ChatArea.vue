@@ -4,11 +4,6 @@
     <div class="chat-header border-b px-4 py-3">
       <div v-if="activeChannel" class="flex items-center justify-between">
         <div class="flex items-center">
-          <div
-            class="w-8 h-8 rounded-full bg-telegram-blue flex items-center justify-center text-white font-semibold text-sm mr-3"
-          >
-            {{ avatarInitial }}
-          </div>
           <div>
             <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
               {{ activeChannel?.name || "未命名" }}
@@ -190,7 +185,8 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="2" fill="%23f0f0f0" opacity="0.3"/></svg>') repeat;
+  background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="2" fill="%23f0f0f0" opacity="0.3"/></svg>')
+    repeat;
 }
 
 .typing-indicator {
@@ -218,7 +214,9 @@ onMounted(() => {
 }
 
 @keyframes bounce {
-  0%, 80%, 100% {
+  0%,
+  80%,
+  100% {
     transform: scale(0);
   }
   40% {

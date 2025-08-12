@@ -101,15 +101,33 @@ export const useChannelStore = defineStore('channel', {
         const config = useRuntimeConfig()
         const userStore = useUserStore()
         
-        const response = await $fetch(`${config.public.apiBase}/api/v1/chatchannelapi/public-channels`, {
-          headers: {
-            'Authorization': `Bearer ${userStore.token}`,
-            'Content-Type': 'application/json'
-          }
-        })
+        // 同時獲取公開和私人頻道
+        const [publicResponse, privateResponse] = await Promise.all([
+          $fetch(`${config.public.apiBase}/api/v1/chatchannelapi/public-channels`, {
+            headers: {
+              'Authorization': `Bearer ${userStore.token}`,
+              'Content-Type': 'application/json'
+            }
+          }),
+          $fetch(`${config.public.apiBase}/api/v1/chatchannelapi/my-channels`, {
+            headers: {
+              'Authorization': `Bearer ${userStore.token}`,
+              'Content-Type': 'application/json'
+            }
+          })
+        ])
         
-        if (response && response.result) {
-          this.channels = response.result
+        if (publicResponse && publicResponse.result) {
+          let allChannels = [...publicResponse.result]
+          
+          // 合併私人頻道（避免重複）
+          if (privateResponse && privateResponse.result) {
+            const publicChannelIds = new Set(publicResponse.result.map(c => c.id))
+            const privateChannels = privateResponse.result.filter(c => !publicChannelIds.has(c.id))
+            allChannels = [...allChannels, ...privateChannels]
+          }
+          
+          this.channels = allChannels
           
           // 如果沒有當前頻道，設定為第一個頻道
           if (!this.currentChannel && this.channels.length > 0) {
