@@ -4,13 +4,63 @@
     <div class="p-4 border-b border-gray-200 bg-white">
       <div class="flex items-center justify-between">
         <h2 class="text-lg font-semibold text-gray-900">頻道列表</h2>
-        <UButton
-          @click="channelStore.openChannelCreator()"
-          size="xs"
-          variant="ghost"
-          icon="i-heroicons-plus"
+        <button
+          @click="showCreateForm = !showCreateForm"
+          class="p-1.5 rounded-md hover:bg-gray-100 transition-colors"
           title="建立新頻道"
-        />
+        >
+          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- 建立頻道表單 -->
+    <div v-if="showCreateForm" class="p-4 bg-blue-50 border-b border-gray-200">
+      <h3 class="text-sm font-medium text-gray-900 mb-3">建立新頻道</h3>
+      <div class="space-y-3">
+        <div>
+          <input
+            v-model="newChannel.name"
+            type="text"
+            placeholder="頻道名稱"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            @keydown.enter="createChannel"
+          />
+        </div>
+        <div>
+          <textarea
+            v-model="newChannel.description"
+            placeholder="頻道描述（選填）"
+            rows="2"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+          ></textarea>
+        </div>
+        <div class="flex items-center">
+          <input
+            v-model="newChannel.isPrivate"
+            type="checkbox"
+            id="private-channel"
+            class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+          />
+          <label for="private-channel" class="ml-2 text-sm text-gray-700">私人頻道</label>
+        </div>
+        <div class="flex justify-end space-x-2">
+          <button
+            @click="cancelCreate"
+            class="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 transition-colors"
+          >
+            取消
+          </button>
+          <button
+            @click="createChannel"
+            :disabled="!newChannel.name.trim() || creating"
+            class="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {{ creating ? '建立中...' : '建立' }}
+          </button>
+        </div>
       </div>
     </div>
 
@@ -176,11 +226,59 @@
 </template>
 
 <script setup>
+import { ref, reactive } from 'vue'
 import { useChannelStore } from '~/stores/channel'
 import { useUserStore } from '~/stores/user'
 
 const channelStore = useChannelStore()
 const userStore = useUserStore()
+
+// 建立頻道相關狀態
+const showCreateForm = ref(false)
+const creating = ref(false)
+const newChannel = reactive({
+  name: '',
+  description: '',
+  isPrivate: false
+})
+
+// 建立頻道方法
+const createChannel = async () => {
+  if (!newChannel.name.trim() || creating.value) return
+  
+  creating.value = true
+  
+  try {
+    const result = await channelStore.createChannel({
+      name: newChannel.name.trim(),
+      description: newChannel.description.trim(),
+      is_private: newChannel.isPrivate
+    })
+    
+    if (result.success) {
+      // 重置表單
+      newChannel.name = ''
+      newChannel.description = ''
+      newChannel.isPrivate = false
+      showCreateForm.value = false
+      
+      console.log('頻道建立成功')
+    } else {
+      console.error('頻道建立失敗:', result.error)
+    }
+  } catch (error) {
+    console.error('頻道建立失敗:', error)
+  } finally {
+    creating.value = false
+  }
+}
+
+const cancelCreate = () => {
+  newChannel.name = ''
+  newChannel.description = ''
+  newChannel.isPrivate = false
+  showCreateForm.value = false
+}
 
 // 組件方法
 const switchChannel = async (channel) => {
