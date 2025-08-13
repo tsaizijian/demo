@@ -25,22 +25,6 @@ export function formatInTZ(isoUtc: string, tz?: string, opts?: Intl.DateTimeForm
   }).format(new Date(isoUtc))
 }
 
-/**
- * 相對時間顯示（使用 Intl.RelativeTimeFormat）
- * @param isoUtc - ISO 8601 UTC 時間字符串
- */
-export function fromNow(isoUtc: string): string {
-  if (!isoUtc) return ''
-  
-  const rtf = new Intl.RelativeTimeFormat('zh-TW', { numeric: 'auto' })
-  const sec = (new Date(isoUtc).getTime() - Date.now()) / 1000
-  const abs = Math.abs(sec)
-  
-  if (abs < 60) return rtf.format(Math.round(sec), 'second')
-  if (abs < 3600) return rtf.format(Math.round(sec / 60), 'minute')  
-  if (abs < 86400) return rtf.format(Math.round(sec / 3600), 'hour')
-  return rtf.format(Math.round(sec / 86400), 'day')
-}
 
 /**
  * 格式化本地時間（智能顯示模式）
@@ -184,34 +168,4 @@ const isYesterday = (date: Date): boolean => {
     date.getMonth() === yesterday.getMonth() &&
     date.getFullYear() === yesterday.getFullYear()
   )
-}
-
-/**
- * 獲取相對時間（使用 Intl.RelativeTimeFormat 的進階版本）
- * @param isoUtc - ISO 8601 UTC 時間字符串
- * @returns 相對時間字符串
- */
-export const getRelativeTime = (isoUtc: string): string => {
-  if (!isoUtc) return ''
-  
-  // 使用標準 Intl API，但針對中文用戶體驗優化
-  const rtf = new Intl.RelativeTimeFormat('zh-TW', { numeric: 'auto' })
-  const sec = (new Date(isoUtc).getTime() - Date.now()) / 1000
-  const abs = Math.abs(sec)
-  
-  // 小於 10 秒顯示「剛剛」
-  if (abs < 10) return '剛剛'
-  if (abs < 60) return `${Math.round(abs)} 秒前`
-  if (abs < 3600) return `${Math.round(abs / 60)} 分鐘前`
-  if (abs < 86400) return `${Math.round(abs / 3600)} 小時前`
-  
-  // 超過一天使用 Intl.RelativeTimeFormat
-  return rtf.format(Math.round(sec / 86400), 'day')
-}
-
-/**
- * 獲取當前時間戳（用於觸發重新計算）
- */
-export const getCurrentTimestamp = (): number => {
-  return Date.now()
 }

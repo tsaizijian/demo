@@ -5,6 +5,7 @@ from flask_appbuilder.security.decorators import has_access
 from flask_appbuilder import expose
 import datetime
 from datetime import timezone
+from .time_utils import to_iso_utc
 
 
 from .models import ChatMessage, UserProfile, ChatChannel
@@ -392,7 +393,7 @@ class ChatChannelApi(ModelRestApi):
                     'id': latest_message.id,
                     'content': latest_message.content,
                     'sender_name': latest_message.sender.username if latest_message.sender else 'Unknown',
-                    'created_on': latest_message.created_on.isoformat() if latest_message.created_on else None
+                    'created_on': to_iso_utc(latest_message.created_on)
                 }
             else:
                 channel_data['lastMessage'] = None
@@ -513,7 +514,7 @@ class ChatChannelApi(ModelRestApi):
                     'id': latest_message.id,
                     'content': latest_message.content,
                     'sender_name': latest_message.sender.username if latest_message.sender else 'Unknown',
-                    'created_on': latest_message.created_on.isoformat() if latest_message.created_on else None
+                    'created_on': to_iso_utc(latest_message.created_on)
                 }
             else:
                 channel_data['lastMessage'] = None

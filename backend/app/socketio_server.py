@@ -7,7 +7,7 @@ import jwt
 
 from . import app, db, appbuilder
 from .models import ChatMessage, UserProfile
-from .time_utils import to_iso_utc, serialize_datetime_fields
+from .time_utils import to_iso_utc
 
 socketio = SocketIO(app, 
                    cors_allowed_origins=["http://localhost:3000"],
