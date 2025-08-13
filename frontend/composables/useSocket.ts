@@ -4,6 +4,7 @@ import { useChannelStore } from '~/stores/channel'
 
 // 創建全局響應式socket引用
 const socket = ref<Socket | null>(null)
+const isSocketConnected = ref(false)
 
 export const useSocket = () => {
   const config = useRuntimeConfig()
@@ -35,14 +36,17 @@ export const useSocket = () => {
     // 連接事件
     socket.value.on('connect', () => {
       console.log('Socket已連接:', socket.value?.id)
+      isSocketConnected.value = true
     })
 
     socket.value.on('disconnect', (reason) => {
       console.log('Socket已斷線:', reason)
+      isSocketConnected.value = false
     })
 
     socket.value.on('connect_error', (error) => {
       console.error('Socket連接錯誤:', error)
+      isSocketConnected.value = false
       
       // 如果是認證錯誤，可能是token過期，嘗試重新登入
       if (error.message && error.message.includes('rejected')) {
@@ -98,6 +102,7 @@ export const useSocket = () => {
       console.log('正在斷開Socket連接...')
       socket.value.disconnect()
       socket.value = null
+      isSocketConnected.value = false
     }
   }
 
@@ -157,7 +162,7 @@ export const useSocket = () => {
   }
 
   const isConnected = () => {
-    return socket.value?.connected || false
+    return isSocketConnected.value
   }
 
   return {
@@ -170,6 +175,7 @@ export const useSocket = () => {
     leaveRoom,
     getOnlineUsers,
     isConnected,
+    isSocketConnected,
     socket
   }
 }

@@ -24,14 +24,14 @@ const { connect, disconnect } = useSocket();
 const sidebarView = ref("chat"); // 'chat', 'settings', 'profile'
 
 // Socket connection
-const { isConnected } = useSocket();
+const { isConnected, isSocketConnected } = useSocket();
 
 // 連線狀態顯示
 const connectionStatus = computed(() =>
-  isConnected() ? "已連線" : "未連線"
+  isSocketConnected.value ? "已連線" : "未連線"
 );
 const connectionStatusClass = computed(() =>
-  isConnected() ? "bg-green-500" : "bg-red-500"
+  isSocketConnected.value ? "bg-green-500" : "bg-red-500"
 );
 
 const handleLogout = async () => {
