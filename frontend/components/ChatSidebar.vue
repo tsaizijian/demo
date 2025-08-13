@@ -4,18 +4,33 @@
     <div class="sidebar-header">
       <div class="flex items-center justify-between">
         <h1 class="text-lg font-semibold">聊天室</h1>
-        <div class="flex items-center space-x-2">
-          <div
-            :class="connectionStatusClass"
-            class="w-2 h-2 rounded-full"
-          ></div>
-          <span class="text-xs opacity-75">{{ connectionStatus }}</span>
-        </div>
+        <ClientOnly>
+          <div class="flex items-center space-x-2">
+            <div
+              :class="connectionStatusClass"
+              class="w-2 h-2 rounded-full"
+            ></div>
+            <span class="text-xs opacity-75">{{ connectionStatus }}</span>
+          </div>
+          <template #fallback>
+            <div class="flex items-center space-x-2">
+              <div class="w-2 h-2 rounded-full bg-gray-400"></div>
+              <span class="text-xs opacity-75">連線中...</span>
+            </div>
+          </template>
+        </ClientOnly>
       </div>
       <div class="mt-2 flex items-center justify-between">
-        <span class="text-sm opacity-90">
-          {{ userStore.displayName }}
-        </span>
+        <ClientOnly>
+          <span class="text-sm opacity-90">
+            {{ userStore.displayName }}
+          </span>
+          <template #fallback>
+            <span class="text-sm opacity-90">
+              訪客
+            </span>
+          </template>
+        </ClientOnly>
         <button
           @click="$emit('show-user-settings')"
           class="settings-btn"
