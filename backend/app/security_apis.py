@@ -26,21 +26,28 @@ class JWTAuthApi(BaseApi):
         """
         try:
             data = request.get_json()
+            print(f"登入請求資料: {data}")
             
             if not data or 'username' not in data or 'password' not in data:
+                print("缺少必要欄位")
                 return jsonify({'message': '請提供使用者名稱和密碼'}), 400
             
             username = data['username']
             password = data['password']
+            print(f"嘗試登入: username={username}")
             
             # 尋找使用者
             user = self.appbuilder.sm.find_user(username=username)
             
             if not user:
+                print(f"使用者不存在: {username}")
                 return jsonify({'message': '使用者不存在'}), 401
+            
+            print(f"找到使用者: {user.username}, is_active={user.is_active}")
             
             # 驗證密碼
             if not check_password_hash(user.password, password):
+                print(f"密碼驗證失敗")
                 return jsonify({'message': '密碼錯誤'}), 401
             
             # 檢查使用者是否啟用

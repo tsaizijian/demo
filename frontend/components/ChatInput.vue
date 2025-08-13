@@ -46,10 +46,10 @@
 
 <script setup>
 import { ref, computed, nextTick, onMounted } from "vue";
-import { useChatStore } from "~/stores/chat";
+import { useChannelStore } from "~/stores/channel";
 import { useSocket } from "~/composables/useSocket";
 
-const chatStore = useChatStore();
+const channelStore = useChannelStore();
 const { sendMessage: socketSendMessage, setTyping, isConnected } = useSocket();
 
 const messageText = ref("");
@@ -71,7 +71,7 @@ const handleSend = async () => {
   try {
     // 優先使用WebSocket發送訊息
     if (isConnected()) {
-      const success = socketSendMessage(text);
+      const success = socketSendMessage(text, channelStore.currentChannelId);
       if (success) {
         messageText.value = "";
         // 停止輸入狀態
@@ -82,15 +82,12 @@ const handleSend = async () => {
         nextTick(() => adjustTextareaHeight());
       }
     } else {
-      // 降級為REST API
-      const result = await chatStore.sendMessage(text);
+      // 降級為REST API，傳遞當前頻道ID
+      const result = await channelStore.sendMessage(text, undefined, channelStore.currentChannelId);
       if (result.success) {
         messageText.value = "";
         // 停止輸入狀態
-        if (isTyping.value) {
-          chatStore.setTyping(false);
-          isTyping.value = false;
-        }
+        isTyping.value = false;
         nextTick(() => adjustTextareaHeight());
       }
     }
@@ -114,8 +111,6 @@ const handleInput = () => {
     if (!isTyping.value) {
       if (isConnected()) {
         setTyping(true);
-      } else {
-        chatStore.setTyping(true);
       }
       isTyping.value = true;
     }
@@ -126,8 +121,6 @@ const handleInput = () => {
       if (isTyping.value) {
         if (isConnected()) {
           setTyping(false);
-        } else {
-          chatStore.setTyping(false);
         }
         isTyping.value = false;
       }
@@ -136,8 +129,6 @@ const handleInput = () => {
     if (isTyping.value) {
       if (isConnected()) {
         setTyping(false);
-      } else {
-        chatStore.setTyping(false);
       }
       isTyping.value = false;
     }
@@ -153,8 +144,6 @@ const handleBlur = () => {
   if (isTyping.value) {
     if (isConnected()) {
       setTyping(false);
-    } else {
-      chatStore.setTyping(false);
     }
     isTyping.value = false;
   }

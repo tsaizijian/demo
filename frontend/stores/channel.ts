@@ -35,6 +35,12 @@ interface ChannelMember {
   joined_at: string
 }
 
+interface ApiResponse<T> {
+  result: T
+  success?: boolean
+  message?: string
+}
+
 export const useChannelStore = defineStore('channel', {
   state: () => ({
     // 頻道相關
@@ -84,8 +90,9 @@ export const useChannelStore = defineStore('channel', {
       const userStore = useUserStore()
       if (!userStore.currentUser) return false
       
-      const member = state.currentChannelMembers.find(
-        m => m.user_id === userStore.currentUser?.id
+      const currentMembers = state.channelMembers[state.currentChannelId] || []
+      const member = currentMembers.find(
+        (m: ChannelMember) => m.user_id === userStore.currentUser?.id
       )
       return member?.role === 'admin' || member?.role === 'owner'
     }
@@ -103,15 +110,17 @@ export const useChannelStore = defineStore('channel', {
         
         // 同時獲取公開和私人頻道
         const [publicResponse, privateResponse] = await Promise.all([
-          $fetch(`${config.public.apiBase}/api/v1/chatchannelapi/public-channels`, {
+          $fetch<ApiResponse<Channel[]>>(`${config.public.apiBase}/api/v1/chatchannelapi/public-channels`, {
+            credentials: 'include',
             headers: {
-              'Authorization': `Bearer ${userStore.token}`,
+              'Authorization': `Bearer ${userStore.accessToken}`,
               'Content-Type': 'application/json'
             }
           }),
-          $fetch(`${config.public.apiBase}/api/v1/chatchannelapi/my-channels`, {
+          $fetch<ApiResponse<Channel[]>>(`${config.public.apiBase}/api/v1/chatchannelapi/my-channels`, {
+            credentials: 'include',
             headers: {
-              'Authorization': `Bearer ${userStore.token}`,
+              'Authorization': `Bearer ${userStore.accessToken}`,
               'Content-Type': 'application/json'
             }
           })
@@ -131,11 +140,16 @@ export const useChannelStore = defineStore('channel', {
           
           // 如果沒有當前頻道，設定為第一個頻道
           if (!this.currentChannel && this.channels.length > 0) {
-            this.currentChannel = this.channels[0]
-            this.currentChannelId = this.channels[0].id
+            const firstChannel = this.channels[0]
+            if (firstChannel) {
+              this.currentChannel = firstChannel
+              this.currentChannelId = firstChannel.id
+              // 載入該頻道的訊息
+              await this.fetchChannelMessages(firstChannel.id)
+            }
           }
           
-          return { success: true, data: response.result }
+          return { success: true, data: allChannels }
         }
         
         return { success: false, error: 'No channels found' }
@@ -180,9 +194,10 @@ export const useChannelStore = defineStore('channel', {
         const config = useRuntimeConfig()
         const userStore = useUserStore()
         
-        const response = await $fetch(`${config.public.apiBase}/api/v1/chatmessageapi/recent/50?channel_id=${channelId}`, {
+        const response = await $fetch<ApiResponse<ChannelMessage[]>>(`${config.public.apiBase}/api/v1/chatmessageapi/recent/50?channel_id=${channelId}`, {
+          credentials: 'include',
           headers: {
-            'Authorization': `Bearer ${userStore.token}`,
+            'Authorization': `Bearer ${userStore.accessToken}`,
             'Content-Type': 'application/json'
           }
         })
@@ -206,22 +221,23 @@ export const useChannelStore = defineStore('channel', {
         const userStore = useUserStore()
         
         // 暫時使用線上使用者 API，之後可以改為頻道專用 API
-        const response = await $fetch(`${config.public.apiBase}/api/v1/userprofileapi/online-users`, {
+        const response = await $fetch<ApiResponse<any[]>>(`${config.public.apiBase}/api/v1/userprofileapi/online-users`, {
+          credentials: 'include',
           headers: {
-            'Authorization': `Bearer ${userStore.token}`,
+            'Authorization': `Bearer ${userStore.accessToken}`,
             'Content-Type': 'application/json'
           }
         })
         
         if (response && response.result) {
           // 模擬頻道成員結構
-          const members = response.result.map((user: any) => ({
+          const members: ChannelMember[] = response.result.map((user: any) => ({
             id: user.id,
             channel_id: channelId,
             user_id: user.user_id,
             username: user.username,
             display_name: user.display_name || user.username,
-            role: user.user_id === 1 ? 'owner' : 'member', // 暫時邏輯
+            role: (user.user_id === 1 ? 'owner' : 'member') as 'owner' | 'admin' | 'member',
             joined_at: new Date().toISOString()
           }))
           
@@ -251,12 +267,13 @@ export const useChannelStore = defineStore('channel', {
         const userStore = useUserStore()
         
         // 調試：印出 token 
-        console.log('Creating channel with token:', userStore.token)
+        console.log('Creating channel with token:', userStore.accessToken)
         
         const response = await $fetch(`${config.public.apiBase}/api/v1/chatchannelapi/create-channel`, {
           method: 'POST',
+          credentials: 'include',
           headers: {
-            'Authorization': `Bearer ${userStore.token}`,
+            'Authorization': `Bearer ${userStore.accessToken}`,
             'Content-Type': 'application/json'
           },
           body: {
@@ -298,8 +315,9 @@ export const useChannelStore = defineStore('channel', {
         
         const response = await $fetch(`${config.public.apiBase}/api/v1/chatchannelapi/${channelId}`, {
           method: 'PUT',
+          credentials: 'include',
           headers: {
-            'Authorization': `Bearer ${userStore.token}`,
+            'Authorization': `Bearer ${userStore.accessToken}`,
             'Content-Type': 'application/json'
           },
           body: updates
@@ -309,12 +327,13 @@ export const useChannelStore = defineStore('channel', {
           // 更新本地頻道資料
           const channelIndex = this.channels.findIndex(c => c.id === channelId)
           if (channelIndex !== -1) {
-            this.channels[channelIndex] = { ...this.channels[channelIndex], ...updates }
-          }
-          
-          // 如果是當前頻道，也更新當前頻道
-          if (this.currentChannelId === channelId) {
-            this.currentChannel = this.channels[channelIndex]
+            const updatedChannel = { ...this.channels[channelIndex], ...updates } as Channel
+            this.channels[channelIndex] = updatedChannel
+            
+            // 如果是當前頻道，也更新當前頻道
+            if (this.currentChannelId === channelId) {
+              this.currentChannel = updatedChannel
+            }
           }
           
           return { success: true, data: response }
@@ -327,6 +346,75 @@ export const useChannelStore = defineStore('channel', {
         return { success: false, error: error.message }
       } finally {
         this.loading = false
+      }
+    },
+
+    // 發送訊息
+    async sendMessage(content: string, replyToId?: number, channelId?: number) {
+      const userStore = useUserStore()
+      if (!userStore.accessToken) return { success: false, error: '未登入' }
+
+      const targetChannelId = channelId || this.currentChannelId
+      this.loading = true
+
+      try {
+        const config = useRuntimeConfig()
+        
+        const response = await $fetch(`${config.public.apiBase}/api/v1/chatmessageapi/send`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Authorization': `Bearer ${userStore.accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: {
+            content,
+            message_type: 'text',
+            reply_to_id: replyToId,
+            channel_id: targetChannelId
+          }
+        })
+
+        // 重新獲取該頻道的訊息列表
+        await this.fetchChannelMessages(targetChannelId)
+        
+        return { success: true, data: response }
+      } catch (error: any) {
+        this.error = error.data?.message || '發送訊息失敗'
+        console.error('發送訊息失敗:', error)
+        return { success: false, error: this.error }
+      } finally {
+        this.loading = false
+      }
+    },
+
+    // 刪除訊息
+    async deleteMessage(messageId: number, channelId?: number) {
+      const userStore = useUserStore()
+      if (!userStore.accessToken) return { success: false, error: '未登入' }
+
+      const targetChannelId = channelId || this.currentChannelId
+
+      try {
+        const config = useRuntimeConfig()
+        
+        await $fetch(`${config.public.apiBase}/api/v1/chatmessageapi/delete/${messageId}`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Authorization': `Bearer ${userStore.accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        })
+
+        // 重新獲取該頻道的訊息列表
+        await this.fetchChannelMessages(targetChannelId)
+        
+        return { success: true }
+      } catch (error: any) {
+        this.error = error.data?.message || '刪除訊息失敗'
+        console.error('刪除訊息失敗:', error)
+        return { success: false, error: this.error }
       }
     },
 
@@ -369,6 +457,11 @@ export const useChannelStore = defineStore('channel', {
     // 清除錯誤
     clearError() {
       this.error = null
+    },
+
+    // 切換頻道創建器顯示狀態
+    toggleChannelCreator() {
+      this.showChannelCreator = !this.showChannelCreator
     },
 
     // 重置狀態

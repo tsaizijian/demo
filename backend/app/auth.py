@@ -24,11 +24,19 @@ class JWTSecurityManager(SecurityManager):
         """
         重寫 has_access 方法，加入 JWT token 認證
         """
-        # 首先嘗試 JWT 認證
+        # 檢查是否為匿名使用者，如果是，嘗試 JWT 認證
+        if (hasattr(g, 'user') and g.user and 
+            g.user.__class__.__name__ != 'AnonymousUserMixin' and 
+            hasattr(g.user, 'id')):
+            print(f"has_access: 已認證使用者 {g.user.id}")
+            return True
+            
+        # 嘗試 JWT 認證
         if self.jwt_authenticate_user():
-            # JWT 認證成功，檢查權限
-            return super(JWTSecurityManager, self).has_access(permission_name, view_name)
+            print(f"has_access: JWT 認證成功")
+            return True
         
+        print(f"has_access: 無法認證，使用原有機制")
         # 回退到原有的認證機制
         return super(JWTSecurityManager, self).has_access(permission_name, view_name)
     

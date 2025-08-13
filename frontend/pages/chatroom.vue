@@ -1,7 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useUserStore } from "~/stores/user";
-import { useChatStore } from "~/stores/chat";
 import { useChannelStore } from "~/stores/channel";
 import { useSocket } from "~/composables/useSocket";
 import ChatSidebar from "~/components/ChatSidebar.vue";
@@ -17,30 +16,30 @@ definePageMeta({
 
 // Store
 const userStore = useUserStore();
-const chatStore = useChatStore();
 const channelStore = useChannelStore();
 const router = useRouter();
 const { connect, disconnect } = useSocket();
 
 // 側邊欄狀態管理
 const sidebarView = ref("chat"); // 'chat', 'settings', 'profile'
-const rightSidebarView = ref("none"); // 'none', 'create-channel'
+
+// Socket connection
+const { isConnected } = useSocket();
 
 // 連線狀態顯示
 const connectionStatus = computed(() =>
-  chatStore.isConnected ? "已連線" : "未連線"
+  isConnected() ? "已連線" : "未連線"
 );
 const connectionStatusClass = computed(() =>
-  chatStore.isConnected ? "bg-green-500" : "bg-red-500"
+  isConnected() ? "bg-green-500" : "bg-red-500"
 );
 
 const handleLogout = async () => {
   // 斷開WebSocket連接
   disconnect();
 
-  // 清除聊天室狀態
-  chatStore.clearMessages();
-  chatStore.setOnlineUsers([]);
+  // 清除頻道狀態
+  channelStore.reset();
 
   // 執行登出（會自動導向登出頁面）
   await userStore.logout();
@@ -59,14 +58,7 @@ const backToChat = () => {
   sidebarView.value = "chat";
 };
 
-// 右側邊欄切換處理
-const showCreateChannel = () => {
-  rightSidebarView.value = "create-channel";
-};
-
-const hideRightSidebar = () => {
-  rightSidebarView.value = "none";
-};
+// 移除了右側邊欄處理，現在直接使用 channelStore.showChannelCreator
 
 // 初始化
 onMounted(async () => {
@@ -79,23 +71,19 @@ onMounted(async () => {
   }
 
   // 檢查是否有token
-  if (!userStore.token) {
+  if (!userStore.accessToken) {
     console.warn("沒有找到認證token，重新導向到登入頁面");
     await router.push("/login");
     return;
   }
 
   // 載入初始資料
-  await Promise.all([
-    channelStore.fetchChannels(),
-    chatStore.fetchMessages(),
-    chatStore.fetchOnlineUsers(),
-  ]);
+  await channelStore.fetchChannels();
 
   // 建立WebSocket連接
   console.log(
     "準備建立Socket連接，token:",
-    userStore.token ? "已存在" : "不存在"
+    userStore.accessToken ? "已存在" : "不存在"
   );
   const socket = connect();
 
@@ -103,10 +91,11 @@ onMounted(async () => {
     console.log("WebSocket連接已建立");
   } else {
     console.warn("WebSocket連接失敗，將使用REST API模式");
-    // 設定定時刷新線上使用者（僅在沒有WebSocket時）
+    // 設定定時刷新（僅在沒有WebSocket時）
     const refreshInterval = setInterval(() => {
-      chatStore.fetchOnlineUsers();
-    }, 30000); // 30秒更新一次
+      // 可以在這裡定期更新頻道列表等
+      channelStore.fetchChannels();
+    }, 60000); // 60秒更新一次
 
     // 清理定時器
     onUnmounted(() => {
@@ -151,7 +140,6 @@ onUnmounted(() => {
         :connectionStatus="connectionStatus"
         :connectionStatusClass="connectionStatusClass"
         @show-user-settings="showUserSettings"
-        @create-channel="showCreateChannel"
       />
 
       <UserActionBar
@@ -172,10 +160,9 @@ onUnmounted(() => {
     <ChatArea />
 
     <!-- 右側邊欄 -->
-    <div v-if="rightSidebarView !== 'none'" class="sidebar-container">
+    <div v-if="channelStore.showChannelCreator" class="sidebar-container">
       <CreateChannelSidebar
-        v-if="rightSidebarView === 'create-channel'"
-        @back="hideRightSidebar"
+        @back="channelStore.toggleChannelCreator"
       />
     </div>
   </div>

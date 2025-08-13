@@ -159,6 +159,12 @@ def handle_message(data):
         emit('error', {'message': '訊息內容不能為空'})
         return
     
+    # 獲取頻道ID
+    channel_id = data.get('channel_id')
+    if not channel_id:
+        emit('error', {'message': '必須指定頻道ID'})
+        return
+    
     user_id = user_info['user_id']
     username = user_info['username']
     display_name = user_info['display_name']
@@ -176,7 +182,7 @@ def handle_message(data):
         new_message = ChatMessage(
             content=content,
             sender_id=user_id,
-            channel_id=1,  # 預設頻道
+            channel_id=channel_id,  # 使用前端傳遞的頻道ID
             # 手動設定 AuditMixin 欄位
             created_by_fk=user_id,
             changed_by_fk=user_id,

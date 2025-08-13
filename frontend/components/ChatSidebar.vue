@@ -39,7 +39,7 @@
 
     <!-- 聊天室清單 -->
     <div class="channel-list">
-      <ChannelSidebar @create-channel="$emit('create-channel')" />
+      <ChannelSidebar />
     </div>
   </div>
 </template>
@@ -62,7 +62,7 @@ const props = defineProps({
 });
 
 // 定義事件
-const emit = defineEmits(["show-user-settings", "create-channel"]);
+const emit = defineEmits(["show-user-settings"]);
 
 const userStore = useUserStore();
 </script>

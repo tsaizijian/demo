@@ -48,15 +48,18 @@ class ChatMessageApi(ModelRestApi):
     def recent_messages(self, limit=50):
         """
         取得最近的訊息
-        GET /api/v1/chatmessage/recent/50
+        GET /api/v1/chatmessage/recent/50?channel_id=1
         """
         if limit > 100:
             limit = 100
 
+        # 從查詢參數獲取 channel_id，預設為 1
+        channel_id = request.args.get('channel_id', 1, type=int)
+
         messages = (
             self.datamodel.session.query(ChatMessage)
             .filter(ChatMessage.is_deleted == False)
-            .filter(ChatMessage.channel_id == 1)  # 預設頻道
+            .filter(ChatMessage.channel_id == channel_id)
             .order_by(ChatMessage.created_on.desc())
             .limit(limit)
             .all()
@@ -83,6 +86,11 @@ class ChatMessageApi(ModelRestApi):
             # 驗證必要欄位
             if not data or 'content' not in data:
                 return jsonify({'error': '訊息內容不能為空'}), 400
+            
+            # 驗證 channel_id 是必需的
+            channel_id = data.get('channel_id')
+            if not channel_id:
+                return jsonify({'error': '必須指定頻道ID'}), 400
 
             # 建立新訊息
             message = ChatMessage(
@@ -91,7 +99,7 @@ class ChatMessageApi(ModelRestApi):
                 message_type=data.get('message_type', 'text'),
                 attachment_path=data.get('attachment_path'),
                 reply_to_id=data.get('reply_to_id'),
-                channel_id=data.get('channel_id', 1),
+                channel_id=channel_id,
                 # 手動設定 AuditMixin 欄位
                 created_by_fk=g.user.id,
                 changed_by_fk=g.user.id,
@@ -435,9 +443,21 @@ class ChatChannelApi(ModelRestApi):
         取得我建立的頻道
         GET /api/v1/chatchannel/my-channels
         """
-        # 簡單的認證檢查
+        # 詳細的認證檢查
         if not hasattr(g, 'user') or not g.user:
             return jsonify({'error': '未登入'}), 401
+        
+        # 檢查是否為匿名使用者
+        if g.user.__class__.__name__ == 'AnonymousUserMixin':
+            print("認證失敗: 使用者為 AnonymousUserMixin")
+            return jsonify({'error': '未認證使用者'}), 401
+        
+        # 檢查使用者是否有 id 屬性
+        if not hasattr(g.user, 'id'):
+            print(f"認證失敗: 使用者物件沒有 id 屬性, 類型: {type(g.user)}")
+            return jsonify({'error': '使用者物件無效'}), 401
+            
+        print(f"取得我的頻道 - 認證成功: user_id={g.user.id}, username={getattr(g.user, 'username', 'N/A')}")
             
         channels = (
             self.datamodel.session.query(ChatChannel)

@@ -49,6 +49,9 @@ FAB_API_SWAGGER_UI = True
 # Will allow user self registration
 AUTH_USER_REGISTRATION = True
 
+# CORS 設定
+CORS_ORIGINS = ['http://localhost:3000']
+
 # The default user self registration role
 AUTH_USER_REGISTRATION_ROLE = "Public"
 

@@ -5,7 +5,7 @@
       <div class="flex items-center justify-between">
         <h2 class="text-lg font-semibold text-gray-900">頻道列表</h2>
         <UButton
-          @click="emit('create-channel')"
+          @click="channelStore.toggleChannelCreator()"
           variant="ghost"
           size="xs"
           icon="i-heroicons-plus"
@@ -205,8 +205,7 @@
 import { useChannelStore } from "~/stores/channel";
 import { useUserStore } from "~/stores/user";
 
-// 定義事件
-const emit = defineEmits(["create-channel"]);
+// 不再需要 emit 事件，直接操作 store
 
 const channelStore = useChannelStore();
 const userStore = useUserStore();

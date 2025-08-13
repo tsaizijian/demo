@@ -54,10 +54,10 @@
 
       <!-- 正在輸入指示器 -->
       <div
-        v-if="chatStore.typingUsers.length > 0"
+        v-if="typingUsers.length > 0"
         class="typing-indicator mt-4"
       >
-        <span>{{ chatStore.typingUsers.join(", ") }} 正在輸入</span>
+        <span>{{ typingUsers.join(", ") }} 正在輸入</span>
         <div class="typing-dot"></div>
         <div class="typing-dot"></div>
         <div class="typing-dot"></div>
@@ -71,25 +71,28 @@
 
 <script setup>
 import { ref, computed, nextTick, watch, onMounted } from "vue";
-import { useChatStore } from "~/stores/chat";
 import { useChannelStore } from "~/stores/channel";
 import { useUserStore } from "~/stores/user";
+import { useSocket } from "~/composables/useSocket";
 import MessageItem from "~/components/MessageItem.vue";
 import ChatInput from "~/components/ChatInput.vue";
 
 defineOptions({ name: "ChatArea" });
 
-const chatStore = useChatStore();
 const channelStore = useChannelStore();
 const userStore = useUserStore();
+const { isConnected } = useSocket();
 const messagesContainer = ref(null);
+
+// 臨時使用空陣列作為 typingUsers，直到 Socket 功能完全整合
+const typingUsers = ref([]);
 
 /** 連線狀態顯示 */
 const connectionStatus = computed(() =>
-  chatStore.isConnected ? "已連線" : "未連線"
+  isConnected() ? "已連線" : "未連線"
 );
 const connectionStatusClass = computed(() =>
-  chatStore.isConnected ? "bg-green-500" : "bg-red-500"
+  isConnected() ? "bg-green-500" : "bg-red-500"
 );
 
 /** 安全取得活躍頻道／訊息 */
@@ -139,12 +142,7 @@ watch(
   activeChannel,
   async (newChannel) => {
     if (newChannel?.id) {
-      // 如果有 loadMessages 方法則使用，否則使用 fetchMessages
-      if (chatStore.loadMessages) {
-        await chatStore.loadMessages(newChannel.id);
-      } else if (chatStore.fetchMessages) {
-        await chatStore.fetchMessages();
-      }
+      await channelStore.fetchChannelMessages(newChannel.id);
       scrollToBottom();
     }
   },

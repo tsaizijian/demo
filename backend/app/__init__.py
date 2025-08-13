@@ -15,14 +15,23 @@ logging.basicConfig(format="%(asctime)s:%(levelname)s:%(name)s:%(message)s")
 logging.getLogger().setLevel(logging.DEBUG)
 
 app = Flask(__name__)
+
 app.config.from_object("config")
 
-# 啟用 CORS
-CORS(app, origins=["http://localhost:3000"], supports_credentials=True)
-
 db = SQLA(app)
-# 使用自訂的 JWT 安全管理器
+
 appbuilder = AppBuilder(app, db.session, security_manager_class=JWTSecurityManager)
+
+CORS(
+    app,
+    resources={r"/api/*": {"origins": "*"}},
+    supports_credentials=True,
+    allow_headers=["Content-Type", "Authorization"],
+    expose_headers=["Content-Type", "Authorization"],
+    methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+)
+
+# 使用自訂的 JWT 安全管理器
 
 
 """

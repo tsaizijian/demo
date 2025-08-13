@@ -52,7 +52,7 @@
 
 <script setup>
 import { computed } from "vue";
-import { useChatStore } from "~/stores/chat";
+import { useChannelStore } from "~/stores/channel";
 import { useUserStore } from "~/stores/user";
 import { useSocket } from "~/composables/useSocket";
 
@@ -67,7 +67,7 @@ const props = defineProps({
   },
 });
 
-const chatStore = useChatStore();
+const channelStore = useChannelStore();
 const userStore = useUserStore();
 const { deleteMessage: socketDeleteMessage, isConnected } = useSocket();
 
@@ -124,7 +124,7 @@ const handleDelete = async () => {
       socketDeleteMessage(props.message.id);
     } else {
       // 降級為REST API
-      await chatStore.deleteMessage(props.message.id);
+      await channelStore.deleteMessage(props.message.id);
     }
   }
 };

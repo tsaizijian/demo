@@ -65,6 +65,7 @@ export const useUserStore = defineStore('user', {
         
         const response = await $fetch(`${config.public.apiBase}/api/v1/auth/login`, {
           method: 'POST',
+          credentials: 'include',
           headers: {
             'Content-Type': 'application/json'
           },
@@ -172,6 +173,7 @@ export const useUserStore = defineStore('user', {
         const config = useRuntimeConfig()
         
         const profile = await $fetch(`${config.public.apiBase}/api/v1/userprofileapi/me`, {
+          credentials: 'include',
           headers: {
             'Authorization': `Bearer ${this.accessToken}`,
             'Content-Type': 'application/json'
@@ -195,6 +197,7 @@ export const useUserStore = defineStore('user', {
         
         const response = await $fetch(`${config.public.apiBase}/api/v1/userprofileapi/update-profile`, {
           method: 'POST',
+          credentials: 'include',
           headers: {
             'Authorization': `Bearer ${this.accessToken}`,
             'Content-Type': 'application/json'
@@ -223,6 +226,7 @@ export const useUserStore = defineStore('user', {
         
         await $fetch(`${config.public.apiBase}/api/v1/userprofileapi/set-online-status`, {
           method: 'POST',
+          credentials: 'include',
           headers: {
             'Authorization': `Bearer ${this.accessToken}`,
             'Content-Type': 'application/json'

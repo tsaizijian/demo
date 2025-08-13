@@ -37,7 +37,7 @@ class ChatMessage(AuditMixin, Model):
     reply_to = relationship("ChatMessage", remote_side=[id], backref="replies")
 
     # 頻道/房間 ID (未來擴充多房間功能)
-    channel_id = Column(Integer, default=1, comment='頻道ID，預設為1')
+    channel_id = Column(Integer, default=1, comment='頻道ID')
 
     # 資料庫索引優化
     __table_args__ = (
