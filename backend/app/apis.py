@@ -356,8 +356,8 @@ class ChatChannelApi(ModelRestApi):
     @has_access
     def get_public_channels(self):
         """
-        取得公開頻道列表
-        GET /api/v1/chatchannel/public-channels
+        取得公開頻道列表 (包含最新訊息)
+        GET /api/v1/chatchannelapi/public-channels
         """
         # 簡單的認證檢查
         if not hasattr(g, 'user') or not g.user:
@@ -371,9 +371,35 @@ class ChatChannelApi(ModelRestApi):
             .all()
         )
 
+        # 為每個頻道添加最新訊息資訊
+        result = []
+        for channel in channels:
+            channel_data = channel.to_dict()
+            
+            # 查詢該頻道的最新訊息
+            latest_message = (
+                self.datamodel.session.query(ChatMessage)
+                .filter(ChatMessage.channel_id == channel.id)
+                .filter(ChatMessage.is_deleted == False)
+                .order_by(ChatMessage.created_on.desc())
+                .first()
+            )
+            
+            if latest_message:
+                channel_data['lastMessage'] = {
+                    'id': latest_message.id,
+                    'content': latest_message.content,
+                    'sender_name': latest_message.sender.username if latest_message.sender else 'Unknown',
+                    'created_on': latest_message.created_on.isoformat() if latest_message.created_on else None
+                }
+            else:
+                channel_data['lastMessage'] = None
+                
+            result.append(channel_data)
+
         return jsonify({
-            'result': [channel.to_dict() for channel in channels],
-            'count': len(channels)
+            'result': result,
+            'count': len(result)
         })
 
     @expose('/create-channel', methods=['POST'])
@@ -440,7 +466,7 @@ class ChatChannelApi(ModelRestApi):
     @has_access
     def get_my_channels(self):
         """
-        取得我建立的頻道
+        取得我建立的頻道 (包含最新訊息)
         GET /api/v1/chatchannel/my-channels
         """
         # 詳細的認證檢查
@@ -466,7 +492,33 @@ class ChatChannelApi(ModelRestApi):
             .all()
         )
 
+        # 為每個頻道添加最新訊息資訊
+        result = []
+        for channel in channels:
+            channel_data = channel.to_dict()
+            
+            # 查詢該頻道的最新訊息
+            latest_message = (
+                self.datamodel.session.query(ChatMessage)
+                .filter(ChatMessage.channel_id == channel.id)
+                .filter(ChatMessage.is_deleted == False)
+                .order_by(ChatMessage.created_on.desc())
+                .first()
+            )
+            
+            if latest_message:
+                channel_data['lastMessage'] = {
+                    'id': latest_message.id,
+                    'content': latest_message.content,
+                    'sender_name': latest_message.sender.username if latest_message.sender else 'Unknown',
+                    'created_on': latest_message.created_on.isoformat() if latest_message.created_on else None
+                }
+            else:
+                channel_data['lastMessage'] = None
+                
+            result.append(channel_data)
+
         return jsonify({
-            'result': [channel.to_dict() for channel in channels],
-            'count': len(channels)
+            'result': result,
+            'count': len(result)
         })

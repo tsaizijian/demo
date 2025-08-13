@@ -17,63 +17,73 @@
     <!-- 頻道列表 -->
     <div class="flex-1 overflow-y-auto">
       <!-- 公開頻道 -->
-      <div class="p-2">
-        <div
-          class="px-2 py-1 text-xs font-medium text-gray-500 uppercase tracking-wide"
+      <div class="px-3 py-2">
+        <h3
+          class="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2"
         >
           公開頻道
-        </div>
+        </h3>
 
-        <div class="mt-1 space-y-1">
+        <div class="space-y-0">
           <div
             v-for="channel in channelStore.publicChannels"
             :key="channel.id"
             @click="switchChannel(channel)"
-            class="group flex items-center px-2 py-2 text-sm rounded-md cursor-pointer transition-colors duration-200"
+            class="channel-item-tg group flex items-center px-3 py-3 cursor-pointer transition-colors duration-200 border-b border-gray-100"
             :class="{
-              'bg-blue-50 text-blue-700 border-r-2 border-blue-600':
-                channel.id === channelStore.currentChannelId,
-              'text-gray-700 hover:bg-gray-100':
-                channel.id !== channelStore.currentChannelId,
+              'bg-blue-50': channel.id === channelStore.currentChannelId,
+              'hover:bg-gray-50': channel.id !== channelStore.currentChannelId,
             }"
           >
-            <UIcon
-              name="i-heroicons-hashtag"
-              class="w-4 h-4 mr-2 flex-shrink-0"
-              :class="{
-                'text-blue-600': channel.id === channelStore.currentChannelId,
-                'text-gray-400': channel.id !== channelStore.currentChannelId,
-              }"
-            />
+            <!-- 頻道頭像 -->
+            <div
+              class="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center text-white font-medium text-sm flex-shrink-0 mr-3"
+            >
+              {{ channel.name.charAt(0).toUpperCase() }}
+            </div>
 
+            <!-- 主要內容區域 -->
             <div class="flex-1 min-w-0">
-              <div class="font-medium truncate">{{ channel.name }}</div>
-              <div
-                v-if="channel.description"
-                class="text-xs text-gray-500 truncate"
-              >
-                {{ channel.description }}
+              <!-- 頻道名稱和時間戳 -->
+              <div class="flex items-center justify-between mb-1">
+                <h3 class="font-semibold text-gray-900 truncate text-base">
+                  {{ channel.name }}
+                </h3>
+                <span
+                  v-if="channel.lastMessage?.created_on"
+                  class="text-xs text-gray-500 flex-shrink-0 ml-2"
+                >
+                  {{ formatTime(channel.lastMessage.created_on) }}
+                </span>
+              </div>
+
+              <!-- 最新訊息 -->
+              <div class="flex items-center justify-between">
+                <div class="text-sm text-gray-600 truncate flex-1">
+                  <template v-if="channel.lastMessage">
+                    <span class="font-medium text-gray-700">
+                      {{ channel.lastMessage.sender_name }}:
+                    </span>
+                    <span class="ml-1">
+                      {{ channel.lastMessage.content }}
+                    </span>
+                  </template>
+                  <span v-else class="text-gray-400 italic">
+                    {{ channel.description || "尚無訊息" }}
+                  </span>
+                </div>
+
+                <!-- 頻道設定按鈕 -->
+                <UButton
+                  v-if="isChannelAdmin(channel.id)"
+                  @click.stop="openChannelSettings(channel)"
+                  size="xs"
+                  variant="ghost"
+                  icon="i-heroicons-cog-6-tooth"
+                  class="ml-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                />
               </div>
             </div>
-
-            <!-- 頻道成員數量 -->
-            <div v-if="getChannelMemberCount(channel.id)" class="ml-2">
-              <span
-                class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800"
-              >
-                {{ getChannelMemberCount(channel.id) }}
-              </span>
-            </div>
-
-            <!-- 頻道設定按鈕 -->
-            <UButton
-              v-if="isChannelAdmin(channel.id)"
-              @click.stop="openChannelSettings(channel)"
-              size="xs"
-              variant="ghost"
-              icon="i-heroicons-cog-6-tooth"
-              class="ml-1 opacity-0 group-hover:opacity-100 transition-opacity"
-            />
           </div>
         </div>
       </div>
@@ -81,80 +91,98 @@
       <!-- 私人頻道 -->
       <div
         v-if="channelStore.privateChannels.length > 0"
-        class="p-2 border-t border-gray-200"
+        class="px-3 py-2 border-t border-gray-100"
       >
-        <div
-          class="px-2 py-1 text-xs font-medium text-gray-500 uppercase tracking-wide"
+        <h3
+          class="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2"
         >
           私人頻道
-        </div>
+        </h3>
 
-        <div class="mt-1 space-y-1">
+        <div class="space-y-0">
           <div
             v-for="channel in channelStore.privateChannels"
             :key="channel.id"
             @click="switchChannel(channel)"
-            class="group flex items-center px-2 py-2 text-sm rounded-md cursor-pointer transition-colors duration-200"
+            class="channel-item-tg group flex items-center px-3 py-3 cursor-pointer transition-colors duration-200 border-b border-gray-100"
             :class="{
-              'bg-blue-50 text-blue-700 border-r-2 border-blue-600':
-                channel.id === channelStore.currentChannelId,
-              'text-gray-700 hover:bg-gray-100':
-                channel.id !== channelStore.currentChannelId,
+              'bg-blue-50': channel.id === channelStore.currentChannelId,
+              'hover:bg-gray-50': channel.id !== channelStore.currentChannelId,
             }"
           >
-            <UIcon
-              name="i-heroicons-lock-closed"
-              class="w-4 h-4 mr-2 flex-shrink-0"
-              :class="{
-                'text-blue-600': channel.id === channelStore.currentChannelId,
-                'text-gray-400': channel.id !== channelStore.currentChannelId,
-              }"
-            />
-
-            <div class="flex-1 min-w-0">
-              <div class="font-medium truncate">{{ channel.name }}</div>
-              <div
-                v-if="channel.description"
-                class="text-xs text-gray-500 truncate"
-              >
-                {{ channel.description }}
-              </div>
+            <!-- 頻道頭像 (私人頻道使用鎖定圖標) -->
+            <div
+              class="w-12 h-12 rounded-full bg-gray-500 flex items-center justify-center text-white font-medium text-sm flex-shrink-0 mr-3"
+            >
+              <UIcon name="i-heroicons-lock-closed" class="w-6 h-6" />
             </div>
 
-            <!-- 頻道設定按鈕 -->
-            <UButton
-              v-if="isChannelAdmin(channel.id)"
-              @click.stop="openChannelSettings(channel)"
-              size="xs"
-              variant="ghost"
-              icon="i-heroicons-cog-6-tooth"
-              class="ml-1 opacity-0 group-hover:opacity-100 transition-opacity"
-            />
+            <!-- 主要內容區域 -->
+            <div class="flex-1 min-w-0">
+              <!-- 頻道名稱和時間戳 -->
+              <div class="flex items-center justify-between mb-1">
+                <h3 class="font-semibold text-gray-900 truncate text-base">
+                  {{ channel.name }}
+                </h3>
+                <span
+                  v-if="channel.lastMessage?.created_on"
+                  class="text-xs text-gray-500 flex-shrink-0 ml-2"
+                >
+                  {{ formatTime(channel.lastMessage.created_on) }}
+                </span>
+              </div>
+
+              <!-- 最新訊息 -->
+              <div class="flex items-center justify-between">
+                <div class="text-sm text-gray-600 truncate flex-1">
+                  <template v-if="channel.lastMessage">
+                    <span class="font-medium text-gray-700">
+                      {{ channel.lastMessage.sender_name }}:
+                    </span>
+                    <span class="ml-1">
+                      {{ channel.lastMessage.content }}
+                    </span>
+                  </template>
+                  <span v-else class="text-gray-400 italic">
+                    {{ channel.description || "尚無訊息" }}
+                  </span>
+                </div>
+
+                <!-- 頻道設定按鈕 -->
+                <UButton
+                  v-if="isChannelAdmin(channel.id)"
+                  @click.stop="openChannelSettings(channel)"
+                  size="xs"
+                  variant="ghost"
+                  icon="i-heroicons-cog-6-tooth"
+                  class="ml-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                />
+              </div>
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- 線上使用者區域 -->
-    <div class="border-t border-gray-200 bg-white">
-      <div class="p-4">
+      <!-- 線上使用者 -->
+      <div class="px-3 py-2 border-t border-gray-100">
         <div class="flex items-center justify-between mb-2">
-          <h3 class="text-sm font-medium text-gray-900">線上使用者</h3>
-          <span
-            class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800"
+          <h3
+            class="text-xs font-medium text-gray-400 uppercase tracking-wider"
           >
-            {{ channelStore.currentChannelMembers.length }}
-          </span>
+            線上使用者
+          </h3>
         </div>
 
-        <div class="space-y-1 max-h-32 overflow-y-auto">
+        <div class="space-y-0.5 max-h-32 overflow-y-auto">
           <div
             v-for="member in channelStore.currentChannelMembers"
             :key="member.id"
-            class="flex items-center text-sm text-gray-700"
+            class="flex items-center px-2 py-1 text-sm text-gray-700 rounded hover:bg-gray-50"
           >
-            <div class="w-2 h-2 bg-green-400 rounded-full mr-2"></div>
-            <span class="truncate">{{ member.display_name }}</span>
+            <div
+              class="w-2 h-2 bg-green-400 rounded-full mr-2 flex-shrink-0"
+            ></div>
+            <span class="truncate flex-1">{{ member.display_name }}</span>
 
             <!-- 角色標籤 -->
             <UBadge
@@ -163,7 +191,7 @@
               color="blue"
               variant="soft"
               size="xs"
-              class="ml-auto"
+              class="ml-1"
             />
           </div>
         </div>
@@ -240,6 +268,58 @@ const isChannelAdmin = (channelId) => {
   return member?.role === "admin" || member?.role === "owner";
 };
 
+// 時間格式化方法 - 針對聊天頻道列表優化
+const formatTime = (dateString) => {
+  if (!dateString) return "";
+
+  const date = new Date(dateString);
+  const now = new Date();
+  const diff = now - date;
+
+  // 小於1分鐘
+  if (diff < 60 * 1000) {
+    return "剛剛";
+  }
+
+  // 小於1小時，顯示分鐘
+  if (diff < 60 * 60 * 1000) {
+    const minutes = Math.floor(diff / (60 * 1000));
+    return `${minutes}分鐘前`;
+  }
+
+  // 如果是今天，顯示時間
+  if (diff < 24 * 60 * 60 * 1000 && date.getDate() === now.getDate()) {
+    return date.toLocaleTimeString("zh-TW", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+  }
+
+  // 如果是昨天
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (
+    date.getDate() === yesterday.getDate() &&
+    date.getMonth() === yesterday.getMonth() &&
+    date.getFullYear() === yesterday.getFullYear()
+  ) {
+    return "昨天";
+  }
+
+  // 如果是一週內
+  if (diff < 7 * 24 * 60 * 60 * 1000) {
+    const days = ["週日", "週一", "週二", "週三", "週四", "週五", "週六"];
+    return days[date.getDay()];
+  }
+
+  // 其他情況顯示日期
+  return date.toLocaleDateString("zh-TW", {
+    month: "numeric",
+    day: "numeric",
+  });
+};
+
 // 載入頻道資料
 onMounted(async () => {
   console.log("ChannelSidebar mounted, 載入頻道資料...");
@@ -271,8 +351,40 @@ onMounted(async () => {
   background: #a0aec0;
 }
 
+/* TG 風格頻道項目 - 覆蓋全域 theme.css 樣式 */
+.channel-item-tg {
+  /* 重置全域 sidebar-item 樣式 */
+  margin: 0 !important;
+  padding: 16px 16px !important;
+  border-radius: 0 !important;
+  transform: none !important;
+  background: transparent !important;
+  min-height: 72px; /* 確保足夠高度容納兩行內容 */
+}
+
+.channel-item-tg:hover {
+  background: #f8fafc !important;
+  transform: none !important;
+}
+
+.channel-item-tg.bg-blue-50 {
+  background: #e1f0ff !important;
+  border-left: 3px solid #3b82f6;
+}
+
 /* 頻道項目的懸停效果 */
 .group:hover .opacity-0 {
   opacity: 1;
+}
+
+/* 訊息內容樣式 */
+.channel-item-tg .text-sm {
+  line-height: 1.4;
+}
+
+/* 時間戳樣式 */
+.channel-item-tg .text-xs {
+  font-weight: 500;
+  letter-spacing: 0.025em;
 }
 </style>

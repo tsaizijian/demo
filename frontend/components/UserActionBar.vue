@@ -27,11 +27,6 @@
     <!-- 用戶資訊 -->
     <div class="user-info-section">
       <div class="flex items-center p-4">
-        <div
-          class="w-16 h-16 rounded-full bg-telegram-blue flex items-center justify-center text-white font-bold text-xl mr-4"
-        >
-          {{ userInitials }}
-        </div>
         <div class="flex-1">
           <h3 class="text-lg font-semibold text-gray-900">
             {{ userStore.displayName }}
