@@ -9,8 +9,9 @@ const router = useRouter();
 
 // 自動執行登出
 onMounted(async () => {
-  // 執行登出邏輯
-  await userStore.logout();
+  // 確保 Socket 已斷開（如果還沒斷開的話）
+  const { disconnect } = useSocket();
+  disconnect();
   
   // 3秒後自動跳轉到登入頁面
   setTimeout(() => {

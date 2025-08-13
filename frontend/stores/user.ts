@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { useSocket } from '~/composables/useSocket'
 
 interface User {
   id: number
@@ -151,6 +152,10 @@ export const useUserStore = defineStore('user', {
     },
 
     async logout() {
+      // 斷開 Socket 連接
+      const { disconnect } = useSocket()
+      disconnect()
+      
       this.currentUser = null
       this.userProfile = null
       this.accessToken = null

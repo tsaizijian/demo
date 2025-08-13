@@ -1,4 +1,4 @@
-from flask import request
+from flask import request, g
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from flask_login import current_user
 from flask_jwt_extended import decode_token, get_jwt_identity
@@ -6,13 +6,45 @@ from datetime import datetime
 import jwt
 
 from . import app, db, appbuilder
-from .models import ChatMessage
+from .models import ChatMessage, UserProfile
 
-socketio = SocketIO(app, cors_allowed_origins="http://localhost:3000", 
-                   logger=True, engineio_logger=True)
+socketio = SocketIO(app, 
+                   cors_allowed_origins=["http://localhost:3000"],
+                   logger=True, 
+                   engineio_logger=True,
+                   async_mode='threading',
+                   ping_timeout=60,
+                   ping_interval=25)
 
 # 儲存線上使用者
 online_users = {}
+
+# 應用啟動時清理所有線上狀態
+def reset_all_online_status():
+    """重置所有使用者的線上狀態為離線"""
+    try:
+        with app.app_context():
+            # 將所有使用者設為離線
+            profiles = db.session.query(UserProfile).filter_by(is_online=True).all()
+            for profile in profiles:
+                profile.is_online = False
+                profile.changed_on = datetime.utcnow()
+                # 使用該使用者的 user_id 作為 changed_by_fk
+                profile.changed_by_fk = profile.user_id
+            
+            db.session.commit()
+            print(f"已重置 {len(profiles)} 個使用者的線上狀態為離線")
+    except Exception as e:
+        print(f"重置線上狀態失敗: {e}")
+        import traceback
+        traceback.print_exc()
+
+# 延遲執行重置，避免在模組載入時影響 Socket.IO 初始化
+def init_socketio():
+    """初始化 Socket.IO 時重置線上狀態"""
+    reset_all_online_status()
+
+# 在這裡不執行重置，改為在應用啟動時執行
 
 # 驗證JWT Token
 def authenticate_socket(auth):
@@ -98,6 +130,9 @@ def on_connect(auth):
             print(f"移除使用者 {username} 的舊連接: {old_sid}")
             del online_users[old_sid]
     
+    # 確保在記憶體中該使用者只有一個連接
+    print(f"使用者 {username} 連接前: {len([u for u in online_users.values() if u['user_id'] == user_id])} 個連接")
+    
     # 記錄新的線上使用者
     online_users[request.sid] = {
         'user_id': user_id,
@@ -105,6 +140,38 @@ def on_connect(auth):
         'display_name': display_name,
         'connected_at': datetime.now().isoformat()
     }
+    
+    # 更新資料庫中的線上狀態
+    try:
+        # 設定 Flask g.user，這樣 AuditMixin 才能正確取得 user_id
+        g.user = user
+        print(f"🔍 DEBUG: 連線時已設定 g.user = {g.user.username} (ID: {g.user.id})")
+        
+        # 查找或創建 UserProfile
+        user_profile = db.session.query(UserProfile).filter_by(user_id=user_id).first()
+        if not user_profile:
+            # 如果不存在 UserProfile，創建一個
+            user_profile = UserProfile(
+                user_id=user_id,
+                display_name=display_name,
+                is_online=True,
+                last_seen=datetime.utcnow(),
+                join_date=datetime.utcnow()
+                # 不需要手動設定 AuditMixin 欄位，會自動處理
+            )
+            db.session.add(user_profile)
+        else:
+            # 更新現有的 UserProfile
+            user_profile.is_online = True
+            user_profile.last_seen = datetime.utcnow()
+            user_profile.changed_on = datetime.utcnow()
+            # 不需要手動設定 changed_by_fk，AuditMixin 會自動處理
+        
+        db.session.commit()
+        print(f"已更新使用者 {username} 的線上狀態為上線")
+    except Exception as e:
+        print(f"更新線上狀態失敗: {e}")
+        db.session.rollback()
     
     # 加入預設房間
     join_room('general')
@@ -119,31 +186,97 @@ def on_connect(auth):
         'message': f'{display_name} 加入聊天室'
     }, room='general')
     
-    # 發送線上使用者列表
-    emit('online_users', list(online_users.values()), room='general')
+    # 發送線上使用者列表（去重）
+    unique_users = {}
+    for user_info in online_users.values():
+        user_id = user_info['user_id']
+        unique_users[user_id] = user_info
+    
+    print(f"Socket記憶體中總連接數: {len(online_users)}, 去重後使用者數: {len(unique_users)}")
+    emit('online_users', list(unique_users.values()), room='general')
 
 @socketio.on('disconnect')
-def on_disconnect():
+def on_disconnect(auth=None):
     """使用者斷線"""
     if request.sid in online_users:
         user_info = online_users[request.sid]
+        user_id = user_info['user_id']
+        username = user_info['username']
         display_name = user_info['display_name']
+        
+        # 檢查該使用者是否還有其他活躍的連接
+        other_connections = False
+        for sid, info in online_users.items():
+            if sid != request.sid and info['user_id'] == user_id:
+                other_connections = True
+                break
         
         # 移除線上使用者記錄
         del online_users[request.sid]
         
+        # 只有當用戶沒有其他活躍連接時，才更新資料庫為離線狀態
+        if not other_connections:
+            print(f"準備將使用者 {username} (ID: {user_id}) 設為離線狀態")
+            try:
+                # 確保 user_id 是有效的整數
+                if user_id is None:
+                    print(f"❌ user_id 為 None，無法更新資料庫")
+                    return
+                
+                print(f"🔍 DEBUG: user_id = {user_id}, type = {type(user_id)}")
+                
+                # 獲取使用者物件並設定到 Flask g 對象，這樣 AuditMixin 才能正確取得 user_id
+                User = appbuilder.sm.user_model
+                user_obj = db.session.query(User).filter_by(id=user_id).first()
+                if not user_obj:
+                    print(f"❌ 找不到 User 物件 (ID: {user_id})")
+                    return
+                
+                # 設定 Flask g.user，這樣 AuditMixin.get_user_id() 就能正確返回 user_id
+                g.user = user_obj
+                print(f"🔍 DEBUG: 已設定 g.user = {g.user.username} (ID: {g.user.id})")
+                
+                user_profile = db.session.query(UserProfile).filter_by(user_id=user_id).first()
+                if user_profile:
+                    print(f"找到使用者資料: {user_profile.display_name}, 目前線上狀態: {user_profile.is_online}")
+                    
+                    user_profile.is_online = False
+                    user_profile.last_seen = datetime.utcnow()
+                    user_profile.changed_on = datetime.utcnow()
+                    # 不需要手動設定 changed_by_fk，AuditMixin 會自動處理
+                    
+                    print(f"🔍 DEBUG: 提交前 changed_by_fk = {user_profile.changed_by_fk}")
+                    db.session.commit()
+                    print(f"✅ 已成功更新使用者 {username} 的線上狀態為離線，last_seen: {user_profile.last_seen}")
+                else:
+                    print(f"❌ 找不到使用者 {username} (ID: {user_id}) 的 UserProfile 記錄")
+            except Exception as e:
+                print(f"❌ 更新離線狀態失敗: {e}")
+                import traceback
+                traceback.print_exc()
+                db.session.rollback()
+        else:
+            print(f"使用者 {username} 還有其他活躍連接，不更新資料庫狀態")
+        
         print(f"使用者 {display_name} 已斷線, SID: {request.sid}")
         
-        # 廣播使用者離線
-        emit('user_left', {
-            'user_id': user_info['user_id'],
-            'username': user_info['username'],
-            'display_name': display_name,
-            'message': f'{display_name} 離開聊天室'
-        }, room='general')
+        # 廣播使用者離線（只有在沒有其他連接時才廣播）
+        if not other_connections:
+            emit('user_left', {
+                'user_id': user_id,
+                'username': username,
+                'display_name': display_name,
+                'message': f'{display_name} 離開聊天室'
+            }, room='general')
         
-        # 更新線上使用者列表
-        emit('online_users', list(online_users.values()), room='general')
+        # 更新線上使用者列表（去重）
+        unique_users = {}
+        for user_info in online_users.values():
+            user_id = user_info['user_id']
+            unique_users[user_id] = user_info
+        
+        print(f"斷線後Socket記憶體中總連接數: {len(online_users)}, 去重後使用者數: {len(unique_users)}")
+        emit('online_users', list(unique_users.values()), room='general')
 
 @socketio.on('send_message')
 def handle_message(data):
@@ -310,7 +443,13 @@ def handle_leave_room(data):
 @socketio.on('get_online_users')
 def handle_get_online_users():
     """取得線上使用者列表"""
-    emit('online_users', list(online_users.values()))
+    # 去重後發送
+    unique_users = {}
+    for user_info in online_users.values():
+        user_id = user_info['user_id']
+        unique_users[user_id] = user_info
+    
+    emit('online_users', list(unique_users.values()))
 
 # 錯誤處理
 @socketio.on_error_default

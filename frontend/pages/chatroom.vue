@@ -86,6 +86,11 @@ onMounted(async () => {
     userStore.accessToken ? "已存在" : "不存在"
   );
   const socket = connect();
+  
+  // 監聽瀏覽器關閉事件
+  if (process.client) {
+    window.addEventListener('beforeunload', handleBeforeUnload);
+  }
 
   if (socket) {
     console.log("WebSocket連接已建立");
@@ -104,9 +109,20 @@ onMounted(async () => {
   }
 });
 
+// 處理瀏覽器關閉
+const handleBeforeUnload = () => {
+  disconnect();
+};
+
+
 // 清理資源
 onUnmounted(() => {
   disconnect();
+  
+  // 移除事件監聽器
+  if (process.client) {
+    window.removeEventListener('beforeunload', handleBeforeUnload);
+  }
 });
 </script>
 
