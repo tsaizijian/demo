@@ -1,19 +1,19 @@
 <template>
-  <div class="chat-input-area">
+  <div class="chat-input-area w-full max-w-none">
     <!-- 輸入框和傳送按鈕在同一行 -->
-    <div class="flex">
+    <div class="flex items-end w-full max-w-none">
       <!-- 輸入框 -->
-      <div class="flex-1">
+      <div class="input-container">
         <textarea
           ref="textareaRef"
           v-model="messageText"
-          class="chat-input w-full"
-          placeholder="輸入訊息..."
+          class="chat-input"
+          placeholder="輸入訊息... (Shift + Enter 換行)"
           @keydown="handleKeydown"
           @input="handleInput"
           @focus="handleFocus"
           @blur="handleBlur"
-          rows="1"
+          rows="1.5"
           :disabled="sending"
         ></textarea>
       </div>
@@ -83,7 +83,11 @@ const handleSend = async () => {
       }
     } else {
       // 降級為REST API，傳遞當前頻道ID
-      const result = await channelStore.sendMessage(text, undefined, channelStore.currentChannelId);
+      const result = await channelStore.sendMessage(
+        text,
+        undefined,
+        channelStore.currentChannelId
+      );
       if (result.success) {
         messageText.value = "";
         // 停止輸入狀態
@@ -164,20 +168,32 @@ onMounted(() => {
 <style scoped>
 .chat-input-area {
   padding: 1rem;
-  border-top: 1px solid #e5e7eb;
   background-color: white;
+  width: 100%;
+  max-width: none !important;
+  box-sizing: border-box;
+}
+
+.input-container {
+  padding: 0 0.5rem 0 0;
+  width: 85%;
 }
 
 .chat-input {
-  width: 100%;
-  padding: 0.75rem 1rem;
+  width: 100% !important;
+  padding: 0.5rem 1rem;
+  max-width: none !important;
   border: 1px solid #d1d5db;
-  border-radius: 9999px;
-  min-height: 44px;
-  max-height: 120px;
+  border-radius: 1rem;
+  min-height: 56px;
+  max-height: 200px;
   resize: none;
   outline: none;
   font-family: inherit;
+  font-size: 1.5rem;
+  line-height: 1.5;
+  overflow-y: auto;
+  box-sizing: border-box;
 }
 
 .chat-input:focus {
@@ -185,9 +201,11 @@ onMounted(() => {
 }
 
 .send-button {
-  width: 2.75rem;
-  height: 2.75rem;
-  border-radius: 9999px;
+  width: 3rem;
+  padding: 0;
+  margin: 0 0 0.25rem 0;
+  height: 3rem;
+  border-radius: 0.75rem;
   background: #0088cc;
   color: white;
   border: none;
@@ -197,6 +215,7 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  align-self: flex-end;
 }
 
 .send-button:hover:not(:disabled) {
