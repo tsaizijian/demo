@@ -4,6 +4,7 @@ from flask_appbuilder.security.sqla.models import User
 from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Boolean, Index, JSON
 from sqlalchemy.orm import relationship
 import datetime
+from .time_utils import to_iso_utc
 
 
 class ChatMessage(AuditMixin, Model):
@@ -78,8 +79,8 @@ class ChatMessage(AuditMixin, Model):
                 'is_deleted': self.is_deleted,
                 'reply_to_id': self.reply_to_id,
                 'channel_id': self.channel_id,
-                'created_on': self.created_on.isoformat() if self.created_on else None,
-                'changed_on': self.changed_on.isoformat() if self.changed_on else None
+                'created_on': to_iso_utc(self.created_on),
+                'changed_on': to_iso_utc(self.changed_on)
             }
         except Exception as e:
             # 如果出現任何錯誤，返回基本資訊
@@ -233,7 +234,7 @@ class ChatChannel(AuditMixin, Model):
                 'creator_id': self.creator_id,
                 'creator_name': creator_name,
                 'max_members': self.max_members,
-                'created_on': self.created_on.isoformat() if self.created_on else None
+                'created_on': to_iso_utc(self.created_on)
             }
         except Exception as e:
             return {

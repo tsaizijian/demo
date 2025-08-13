@@ -9,6 +9,7 @@ from flask_appbuilder.security.sqla.manager import SecurityManager
 from flask_login import current_user
 from functools import wraps
 import datetime
+from datetime import timezone
 
 class JWTSecurityManager(SecurityManager):
     """
@@ -62,7 +63,7 @@ class JWTSecurityManager(SecurityManager):
                 # 檢查 token 是否過期
                 if 'exp' in payload:
                     exp_timestamp = payload['exp']
-                    if datetime.datetime.utcnow().timestamp() > exp_timestamp:
+                    if datetime.datetime.now(timezone.utc).timestamp() > exp_timestamp:
                         print("JWT Token 已過期")
                         return False
                 
@@ -128,7 +129,7 @@ class JWTSecurityManager(SecurityManager):
                 # 檢查 token 是否過期
                 if 'exp' in payload:
                     exp_timestamp = payload['exp']
-                    if datetime.datetime.utcnow().timestamp() > exp_timestamp:
+                    if datetime.datetime.now(timezone.utc).timestamp() > exp_timestamp:
                         g.user = None
                         return
                 
@@ -185,8 +186,8 @@ def create_jwt_token(user, app):
         'user_id': user.id,
         'username': user.username,
         'email': user.email,
-        'iat': datetime.datetime.utcnow(),
-        'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)  # 7 天過期
+        'iat': datetime.datetime.now(timezone.utc),
+        'exp': datetime.datetime.now(timezone.utc) + datetime.timedelta(days=7)  # 7 天過期
     }
     
     token = jwt.encode(payload, app.config['SECRET_KEY'], algorithm='HS256')

@@ -4,6 +4,7 @@
 """
 import jwt
 import datetime
+from datetime import timezone
 from app import app, appbuilder
 
 def test_jwt_token():
@@ -14,8 +15,8 @@ def test_jwt_token():
         'user_id': 1,
         'username': 'jerry',
         'email': 'b30430624@gmail.com',
-        'iat': datetime.datetime.utcnow(),
-        'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
+        'iat': datetime.datetime.now(timezone.utc),
+        'exp': datetime.datetime.now(timezone.utc) + datetime.timedelta(days=7)
     }
     
     # 創建 JWT token

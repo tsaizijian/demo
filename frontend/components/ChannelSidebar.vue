@@ -46,7 +46,10 @@
             <div class="flex-1 min-w-0">
               <!-- 頻道名稱和時間戳 -->
               <div class="flex items-center justify-between mb-1">
-                <h3 class="font-semibold text-gray-900 truncate text-base">
+                <h3
+                  class="font-semibold text-gray-900 truncate text-base"
+                  style="margin-right: 0.25rem"
+                >
                   {{ channel.name }}
                 </h3>
                 <span
@@ -121,7 +124,10 @@
             <div class="flex-1 min-w-0">
               <!-- 頻道名稱和時間戳 -->
               <div class="flex items-center justify-between mb-1">
-                <h3 class="font-semibold text-gray-900 truncate text-base">
+                <h3
+                  class="font-semibold text-gray-900 truncate text-base"
+                  style="margin-right: 0.25rem"
+                >
                   {{ channel.name }}
                 </h3>
                 <span

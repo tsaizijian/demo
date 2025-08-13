@@ -2,11 +2,12 @@ from flask import request, g
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from flask_login import current_user
 from flask_jwt_extended import decode_token, get_jwt_identity
-from datetime import datetime
+from datetime import datetime, timezone
 import jwt
 
 from . import app, db, appbuilder
 from .models import ChatMessage, UserProfile
+from .time_utils import to_iso_utc, serialize_datetime_fields
 
 socketio = SocketIO(app, 
                    cors_allowed_origins=["http://localhost:3000"],
@@ -28,7 +29,7 @@ def reset_all_online_status():
             profiles = db.session.query(UserProfile).filter_by(is_online=True).all()
             for profile in profiles:
                 profile.is_online = False
-                profile.changed_on = datetime.utcnow()
+                profile.changed_on = datetime.now(timezone.utc)
                 # 使用該使用者的 user_id 作為 changed_by_fk
                 profile.changed_by_fk = profile.user_id
             
@@ -155,16 +156,16 @@ def on_connect(auth):
                 user_id=user_id,
                 display_name=display_name,
                 is_online=True,
-                last_seen=datetime.utcnow(),
-                join_date=datetime.utcnow()
+                last_seen=datetime.now(timezone.utc),
+                join_date=datetime.now(timezone.utc)
                 # 不需要手動設定 AuditMixin 欄位，會自動處理
             )
             db.session.add(user_profile)
         else:
             # 更新現有的 UserProfile
             user_profile.is_online = True
-            user_profile.last_seen = datetime.utcnow()
-            user_profile.changed_on = datetime.utcnow()
+            user_profile.last_seen = datetime.now(timezone.utc)
+            user_profile.changed_on = datetime.now(timezone.utc)
             # 不需要手動設定 changed_by_fk，AuditMixin 會自動處理
         
         db.session.commit()
@@ -241,8 +242,8 @@ def on_disconnect(auth=None):
                     print(f"找到使用者資料: {user_profile.display_name}, 目前線上狀態: {user_profile.is_online}")
                     
                     user_profile.is_online = False
-                    user_profile.last_seen = datetime.utcnow()
-                    user_profile.changed_on = datetime.utcnow()
+                    user_profile.last_seen = datetime.now(timezone.utc)
+                    user_profile.changed_on = datetime.now(timezone.utc)
                     # 不需要手動設定 changed_by_fk，AuditMixin 會自動處理
                     
                     print(f"🔍 DEBUG: 提交前 changed_by_fk = {user_profile.changed_by_fk}")
@@ -319,20 +320,20 @@ def handle_message(data):
             # 手動設定 AuditMixin 欄位
             created_by_fk=user_id,
             changed_by_fk=user_id,
-            created_on=datetime.utcnow(),
-            changed_on=datetime.utcnow()
+            created_on=datetime.now(timezone.utc),
+            changed_on=datetime.now(timezone.utc)
         )
         
         db.session.add(new_message)
         db.session.commit()
         
-        # 準備廣播資料
+        # 準備廣播資料（使用 ISO 8601 UTC 格式）
         message_data = {
             'id': new_message.id,
             'content': content,
             'sender_id': user_id,
             'sender_name': display_name,
-            'created_on': new_message.created_on.isoformat(),
+            'created_on': to_iso_utc(new_message.created_on),
             'channel_id': new_message.channel_id
         }
         

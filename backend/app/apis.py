@@ -4,6 +4,8 @@ from flask import request, jsonify, g
 from flask_appbuilder.security.decorators import has_access
 from flask_appbuilder import expose
 import datetime
+from datetime import timezone
+
 
 from .models import ChatMessage, UserProfile, ChatChannel
 
@@ -103,8 +105,8 @@ class ChatMessageApi(ModelRestApi):
                 # 手動設定 AuditMixin 欄位
                 created_by_fk=g.user.id,
                 changed_by_fk=g.user.id,
-                created_on=datetime.datetime.utcnow(),
-                changed_on=datetime.datetime.utcnow()
+                created_on = datetime.now(),
+                changed_on = datetime.now()
             )
 
             # 儲存到資料庫
@@ -203,7 +205,7 @@ class UserProfileApi(ModelRestApi):
     def pre_add(self, obj):
         """在添加前自動設定user_id"""
         obj.user_id = g.user.id
-        obj.join_date = datetime.datetime.utcnow()
+        obj.join_date = datetime.datetime.now(timezone.utc)
 
     @expose('/me')
     @has_access
@@ -223,7 +225,7 @@ class UserProfileApi(ModelRestApi):
             profile = UserProfile(
                 user_id=g.user.id,
                 display_name=g.user.username,
-                join_date=datetime.datetime.utcnow()
+                join_date=datetime.datetime.now(timezone.utc)
             )
             self.datamodel.add(profile)
 
@@ -308,7 +310,7 @@ class UserProfileApi(ModelRestApi):
                 self.datamodel.add(profile)
 
             profile.is_online = is_online
-            profile.last_seen = datetime.datetime.utcnow()
+            profile.last_seen = datetime.datetime.now(timezone.utc)
             self.datamodel.edit(profile)
 
             return jsonify({

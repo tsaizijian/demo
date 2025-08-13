@@ -70,6 +70,7 @@
         own: isOwnMessage,
         other: !isOwnMessage,
       }"
+      :title="detailedTime"
     >
       {{ formattedTime }}
     </div>
@@ -89,6 +90,8 @@ import { useChannelStore } from "~/stores/channel";
 import { useUserStore } from "~/stores/user";
 import { useSocket } from "~/composables/useSocket";
 import { useContextMenu } from "~/composables/useContextMenu";
+import { formatLocalTime, getDetailedTime } from "~/utils/timeUtils";
+import { useTimeUpdate } from "~/composables/useTimeUpdate";
 
 const props = defineProps({
   message: {
@@ -106,6 +109,7 @@ const userStore = useUserStore();
 const { deleteMessage: socketDeleteMessage, isConnected } = useSocket();
 const { contextMenuState, showContextMenu, hideContextMenu, isMenuVisible } =
   useContextMenu();
+const { updateTrigger } = useTimeUpdate(30000); // 每 30 秒更新一次
 
 const isOwnMessage = computed(() => {
   return props.message.sender_id === userStore.userProfile?.user_id;
@@ -116,42 +120,16 @@ const canDeleteMessage = computed(() => {
 });
 
 const formattedTime = computed(() => {
-  return formatTime(props.message.created_on);
+  // 使用 updateTrigger 來觸發重新計算
+  updateTrigger.value;
+  return formatLocalTime(props.message.created_on);
 });
 
-// 格式化時間
-const formatTime = (timestamp) => {
-  const date = new Date(timestamp);
-  const now = new Date();
-  const diff = now.getTime() - date.getTime();
+const detailedTime = computed(() => {
+  updateTrigger.value;
+  return getDetailedTime(props.message.created_on);
+});
 
-  // 小於一分鐘
-  if (diff < 60000) {
-    return "剛剛";
-  }
-
-  // 小於一小時
-  if (diff < 3600000) {
-    const minutes = Math.floor(diff / 60000);
-    return `${minutes} 分鐘前`;
-  }
-
-  // 今天
-  if (date.toDateString() === now.toDateString()) {
-    return date.toLocaleTimeString("zh-TW", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  }
-
-  // 其他日期
-  return date.toLocaleDateString("zh-TW", {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-};
 
 const handleDelete = async () => {
   hideContextMenu();
