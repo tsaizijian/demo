@@ -216,7 +216,9 @@ def handle_message(data):
 @socketio.on('delete_message')
 def handle_delete_message(data):
     """處理刪除訊息"""
-    if not current_user or not current_user.is_authenticated:
+    # 從 online_users 中取得使用者資訊（因為 Socket.IO 可能無法直接使用 current_user）
+    user_info = online_users.get(request.sid)
+    if not user_info:
         emit('error', {'message': '未認證使用者'})
         return
     
@@ -225,25 +227,33 @@ def handle_delete_message(data):
         emit('error', {'message': '無效的訊息ID'})
         return
     
+    user_id = user_info['user_id']
+    username = user_info['username']
+    
     try:
         # 查找訊息
         message = db.session.query(ChatMessage).filter_by(
             id=message_id,
-            sender_id=current_user.id
+            sender_id=user_id
         ).first()
         
         if not message:
             emit('error', {'message': '找不到訊息或無權限刪除'})
             return
         
+        channel_id = message.channel_id
+        
         # 刪除訊息
         db.session.delete(message)
         db.session.commit()
         
-        print(f"使用者 {current_user.username} 刪除了訊息 ID: {message_id}")
+        print(f"使用者 {username} 刪除了訊息 ID: {message_id}")
         
         # 廣播刪除事件
-        emit('message_deleted', {'message_id': message_id}, room='general')
+        emit('message_deleted', {
+            'message_id': message_id, 
+            'channel_id': channel_id
+        }, room='general')
         
     except Exception as e:
         print(f"刪除訊息失敗: {e}")
@@ -253,15 +263,18 @@ def handle_delete_message(data):
 @socketio.on('typing')
 def handle_typing(data):
     """處理輸入狀態"""
-    if not current_user or not current_user.is_authenticated:
+    # 從 online_users 中取得使用者資訊
+    user_info = online_users.get(request.sid)
+    if not user_info:
         return
     
     is_typing = data.get('is_typing', False)
-    display_name = getattr(current_user, 'first_name', None) or current_user.username
+    user_id = user_info['user_id']
+    display_name = user_info['display_name']
     
     # 廣播輸入狀態（除了自己）
     emit('user_typing', {
-        'user_id': current_user.id,
+        'user_id': user_id,
         'display_name': display_name,
         'is_typing': is_typing
     }, room='general', include_self=False)
@@ -269,22 +282,30 @@ def handle_typing(data):
 @socketio.on('join_room')
 def handle_join_room(data):
     """加入特定房間"""
+    # 從 online_users 中取得使用者資訊
+    user_info = online_users.get(request.sid)
+    if not user_info:
+        return
+    
     room = data.get('room', 'general')
     join_room(room)
     
-    if current_user and current_user.is_authenticated:
-        display_name = getattr(current_user, 'first_name', None) or current_user.username
-        emit('status', {'message': f'{display_name} 已加入房間 {room}'}, room=room)
+    display_name = user_info['display_name']
+    emit('status', {'message': f'{display_name} 已加入房間 {room}'}, room=room)
 
 @socketio.on('leave_room')
 def handle_leave_room(data):
     """離開特定房間"""
+    # 從 online_users 中取得使用者資訊
+    user_info = online_users.get(request.sid)
+    if not user_info:
+        return
+    
     room = data.get('room', 'general')
     leave_room(room)
     
-    if current_user and current_user.is_authenticated:
-        display_name = getattr(current_user, 'first_name', None) or current_user.username
-        emit('status', {'message': f'{display_name} 已離開房間 {room}'}, room=room)
+    display_name = user_info['display_name']
+    emit('status', {'message': f'{display_name} 已離開房間 {room}'}, room=room)
 
 @socketio.on('get_online_users')
 def handle_get_online_users():

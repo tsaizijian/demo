@@ -87,7 +87,7 @@ export const useSocket = () => {
     // 錯誤處理
     socket.value.on('error', (error) => {
       console.error('Socket錯誤:', error)
-      channelStore.setError(error.message || '連接發生錯誤')
+      channelStore.error = error.message || '連接發生錯誤'
     })
 
     return socket.value
