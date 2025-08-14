@@ -105,7 +105,7 @@ export const useUserStore = defineStore("user", {
           this.isAuthenticated = true;
 
           // 儲存到localStorage
-          if (process.client) {
+          if (import.meta.client) {
             localStorage.setItem("access_token", response.access_token);
           }
 
@@ -196,7 +196,7 @@ export const useUserStore = defineStore("user", {
       this.error = null;
 
       // 清除localStorage
-      if (process.client) {
+      if (import.meta.client) {
         localStorage.removeItem("access_token");
       }
 
@@ -291,7 +291,7 @@ export const useUserStore = defineStore("user", {
 
     // 檢查登入狀態
     initAuth() {
-      if (process.client) {
+      if (import.meta.client) {
         const token = localStorage.getItem("access_token");
         if (token) {
           // 檢查token是否過期

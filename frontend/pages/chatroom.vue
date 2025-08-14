@@ -66,7 +66,7 @@ onMounted(async () => {
   userStore.initAuth();
 
   if (!userStore.isAuthenticated) {
-    await router.push("/login");
+    await navigateTo("/login");
     return;
   }
 
@@ -86,10 +86,10 @@ onMounted(async () => {
     userStore.accessToken ? "已存在" : "不存在"
   );
   const socket = connect();
-  
+
   // 監聽瀏覽器關閉事件
   if (process.client) {
-    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener("beforeunload", handleBeforeUnload);
   }
 
   if (socket) {
@@ -114,14 +114,13 @@ const handleBeforeUnload = () => {
   disconnect();
 };
 
-
 // 清理資源
 onUnmounted(() => {
   disconnect();
-  
+
   // 移除事件監聽器
   if (process.client) {
-    window.removeEventListener('beforeunload', handleBeforeUnload);
+    window.removeEventListener("beforeunload", handleBeforeUnload);
   }
 });
 </script>
@@ -177,9 +176,7 @@ onUnmounted(() => {
 
     <!-- 右側邊欄 -->
     <div v-if="channelStore.showChannelCreator" class="sidebar-container">
-      <CreateChannelSidebar
-        @back="channelStore.toggleChannelCreator"
-      />
+      <CreateChannelSidebar @back="channelStore.toggleChannelCreator" />
     </div>
   </div>
 </template>

@@ -12,17 +12,21 @@
   "dependencies": {
     "@nuxt/eslint": "^1.8.0",
     "@nuxt/image": "^1.11.0",
-    "@nuxt/ui": "^3.3.0",
     "@pinia/nuxt": "^0.11.2",
+    "@primeuix/themes": "^1.2.3",
+    "@primevue/nuxt-module": "^4.3.7",
+    "primevue": "^4.3.7",
     "eslint": "^9.32.0",
-    "nuxt": "^4.0.1",
+    "nuxt": "^4.0.3",
     "pinia": "^3.0.3",
+    "primeicons": "^7.0.0",
     "socket.io-client": "^4.8.1",
+    "tailwindcss-primeui": "^0.6.1",
     "typescript": "^5.9.2",
     "vue": "^3.5.18",
     "vue-router": "^4.5.1"
   },
   "devDependencies": {
-    "@iconify-json/heroicons": "^1.2.2"
+    "@nuxtjs/tailwindcss": "^6.14.0"
   }
 }
