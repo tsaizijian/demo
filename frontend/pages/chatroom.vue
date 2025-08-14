@@ -155,6 +155,8 @@ onUnmounted(() => {
         :connectionStatus="connectionStatus"
         :connectionStatusClass="connectionStatusClass"
         @show-user-settings="showUserSettings"
+        @logout="handleLogout"
+        @create-channel="() => channelStore.toggleChannelCreator()"
       />
 
       <UserActionBar
