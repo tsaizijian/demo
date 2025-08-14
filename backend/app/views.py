@@ -1,6 +1,7 @@
 from flask import render_template
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from flask_appbuilder import ModelView, ModelRestApi
+from flask_appbuilder.security.sqla.models import User
 
 from . import appbuilder, db
 from .models import ChatMessage, UserProfile, ChatChannel
@@ -54,6 +55,19 @@ class ChatChannelView(ModelView):
     base_order = ('created_on', 'desc')
 
 
+class UserView(ModelView):
+    """註冊用戶管理介面 (ab_user 表)"""
+    datamodel = SQLAInterface(User)
+    
+    list_columns = ['id', 'username', 'first_name', 'last_name', 'email', 'active', 'created_on', 'changed_on']
+    show_columns = ['id', 'username', 'first_name', 'last_name', 'email', 'active', 'login_count', 'fail_login_count', 'created_on', 'changed_on', 'last_login']
+    search_columns = ['username', 'first_name', 'last_name', 'email']
+    
+    # 只允許查看，不允許新增/編輯/刪除 (這些應該通過註冊API處理)
+
+    base_order = ('created_on', 'desc')
+
+
 # Register Admin Views
 appbuilder.add_view(
     ChatMessageView,
@@ -75,6 +89,13 @@ appbuilder.add_view(
     "聊天頻道",
     icon="fa-list-alt",
     category="聊天室管理"
+)
+
+appbuilder.add_view(
+    UserView,
+    "註冊用戶",
+    icon="fa-user",
+    category="用戶管理"
 )
 
 """

@@ -3,7 +3,6 @@ import Aura from "@primeuix/themes/aura";
 import PrimeUI from "tailwindcss-primeui";
 import { definePreset } from "@primeuix/themes";
 import { defineNuxtConfig } from "nuxt/config";
-import type { TailwindCSSModuleOptions } from "@nuxtjs/tailwindcss";
 
 const MyPreset = definePreset(Aura, {
   components: {
@@ -56,14 +55,6 @@ export default defineNuxtConfig({
     "~/assets/css/global.css",
   ],
 
-  // 🌀 Tailwind CSS + PrimeUI 設定
-  tailwindcss: <TailwindCSSModuleOptions>{
-    config: {
-      plugins: [PrimeUI],
-      darkMode: ["class", ".p-dark"],
-    },
-  },
-
   // 🎨 PrimeVue 設定 + 客製主題
   primevue: {
     options: {
@@ -78,7 +69,6 @@ export default defineNuxtConfig({
       unstyled: false,
     },
     autoImport: true,
-    services: ["toast"],
   },
 
   // 🌐 環境變數

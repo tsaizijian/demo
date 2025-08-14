@@ -4,8 +4,8 @@ import InputText from "primevue/inputtext";
 import Password from "primevue/password";
 import Button from "primevue/button";
 import Message from "primevue/message";
-import { useToast } from 'primevue/usetoast';
 import { useUserStore } from "~/stores/user";
+import { useToast } from "primevue/usetoast";
 
 // 設定頁面元資訊
 definePageMeta({
@@ -13,7 +13,7 @@ definePageMeta({
 });
 
 const userStore = useUserStore();
-const router = useRouter();
+const toast = useToast();
 
 // 表單資料
 const form = reactive({
@@ -104,21 +104,19 @@ const handleRegister = async () => {
 
     if (result.success) {
       // 註冊成功，顯示成功訊息並跳轉
-      const toast = useToast();
       toast.add({
         severity: "success",
-        summary: "註冊成功！",
-        detail: "歡迎加入聊天室！",
+        summary: "註冊成功",
+        detail: "您的帳號已成功建立，請登入。",
         life: 3000,
       });
-
       // 等待一下再跳轉到登入頁面
       setTimeout(() => {
         navigateTo("/login");
       }, 2000);
     } else {
       // 顯示註冊失敗的錯誤訊息
-      const toast = useToast();
+
       toast.add({
         severity: "error",
         summary: "註冊失敗",
@@ -131,7 +129,6 @@ const handleRegister = async () => {
   } catch (error) {
     console.error("註冊過程發生錯誤:", error);
     // 顯示網路錯誤訊息
-    const toast = useToast();
     toast.add({
       severity: "error",
       summary: "網路錯誤",
@@ -183,161 +180,165 @@ onMounted(() => {
 <template>
   <div class="flex items-center justify-center py-12 px-4 bg-gray-50">
     <div class="mx-auto max-w-md w-full">
-      <Card class="shadow-lg border border-gray-200">
-        <template #header>
-          <div class="text-center">
-            <h2 class="text-2xl font-semibold text-gray-900 mb-2">
-              註冊新帳號
-            </h2>
-            <hr class="border-gray-200" />
-          </div>
-        </template>
-        <template #content>
-          <div class="registration-form">
-            <form @submit.prevent="handleRegister">
-              <!-- 名字 -->
-              <div class="form-group">
-                <label for="first_name" class="form-label">名字 *</label>
-                <div class="input-text">
-                  <InputText
-                    id="first_name"
-                    v-model="form.first_name"
-                    type="text"
-                    placeholder="請輸入名字"
+      <ClientOnly>
+        <Card class="shadow-lg border border-gray-200">
+          <template #header>
+            <div class="text-center">
+              <h2 class="text-2xl font-semibold text-gray-900 mb-2">
+                註冊新帳號
+              </h2>
+              <hr class="border-gray-200" />
+            </div>
+          </template>
+          <template #content>
+            <div class="registration-form">
+              <form @submit.prevent="handleRegister">
+                <!-- 名字 -->
+                <div class="form-group">
+                  <label for="first_name" class="form-label">名字 *</label>
+                  <div class="input-text">
+                    <InputText
+                      id="first_name"
+                      v-model="form.first_name"
+                      type="text"
+                      placeholder="請輸入名字"
+                      :disabled="loading"
+                      class="w-full"
+                    />
+                  </div>
+                </div>
+                <p v-if="errors.first_name" class="error-text">
+                  {{ errors.first_name }}
+                </p>
+
+                <!-- 姓氏 -->
+                <div class="form-group">
+                  <label for="last_name" class="form-label">姓氏 *</label>
+                  <div class="input-text">
+                    <InputText
+                      id="last_name"
+                      v-model="form.last_name"
+                      type="text"
+                      placeholder="請輸入姓氏"
+                      :disabled="loading"
+                      class="w-full"
+                    />
+                  </div>
+                </div>
+                <p v-if="errors.last_name" class="error-text">
+                  {{ errors.last_name }}
+                </p>
+
+                <!-- 電子郵件 -->
+                <div class="form-group">
+                  <label for="email" class="form-label">電子郵件 *</label>
+                  <div class="input-text">
+                    <InputText
+                      id="email"
+                      v-model="form.email"
+                      type="email"
+                      placeholder="請輸入電子郵件"
+                      :disabled="loading"
+                      class="w-full"
+                    />
+                  </div>
+                </div>
+                <p v-if="errors.email" class="error-text">{{ errors.email }}</p>
+
+                <!-- 登入帳號 -->
+                <div class="form-group">
+                  <label for="username" class="form-label">登入帳號 *</label>
+                  <div class="input-text">
+                    <InputText
+                      id="username"
+                      v-model="form.username"
+                      type="text"
+                      placeholder="聊天室使用帳號"
+                      :disabled="loading"
+                      :loading="checkingUsername"
+                      class="w-full"
+                    />
+                  </div>
+                </div>
+                <p v-if="errors.username" class="error-text">
+                  {{ errors.username }}
+                </p>
+
+                <!-- 帳號密碼 -->
+                <div class="form-group">
+                  <label for="password" class="form-label">帳號密碼 *</label>
+                  <div class="input-text password-field">
+                    <Password
+                      input-id="password"
+                      v-model="form.password"
+                      placeholder="聊天室帳號密碼"
+                      :disabled="loading"
+                      autocomplete="new-password"
+                      class="w-full"
+                      :feedback="false"
+                      toggleMask
+                    />
+                  </div>
+                </div>
+                <p v-if="errors.password" class="error-text">
+                  {{ errors.password }}
+                </p>
+
+                <!-- 重複密碼 -->
+                <div class="form-group">
+                  <label for="confirmPassword" class="form-label"
+                    >重複密碼 *</label
+                  >
+                  <div class="input-text password-field">
+                    <Password
+                      input-id="confirmPassword"
+                      v-model="form.confirmPassword"
+                      placeholder="再次輸入密碼"
+                      :disabled="loading"
+                      autocomplete="new-password"
+                      class="w-full"
+                      :feedback="false"
+                      toggleMask
+                    />
+                  </div>
+                </div>
+                <p v-if="errors.confirmPassword" class="error-text">
+                  {{ errors.confirmPassword }}
+                </p>
+
+                <!-- 按鈕組 -->
+                <div class="button-group">
+                  <Button
+                    class="cancel-button"
+                    severity="secondary"
+                    @click="navigateTo('/login')"
                     :disabled="loading"
-                    class="w-full"
+                    outlined
+                    label="取消"
+                  />
+                  <Button
+                    type="submit"
+                    class="register-button"
+                    :loading="loading"
+                    :disabled="loading"
+                    :label="loading ? '註冊中...' : '註冊'"
                   />
                 </div>
-              </div>
-              <p v-if="errors.first_name" class="error-text">
-                {{ errors.first_name }}
-              </p>
+              </form>
 
-              <!-- 姓氏 -->
-              <div class="form-group">
-                <label for="last_name" class="form-label">姓氏 *</label>
-                <div class="input-text">
-                  <InputText
-                    id="last_name"
-                    v-model="form.last_name"
-                    type="text"
-                    placeholder="請輸入姓氏"
-                    :disabled="loading"
-                    class="w-full"
-                  />
-                </div>
-              </div>
-              <p v-if="errors.last_name" class="error-text">
-                {{ errors.last_name }}
-              </p>
-
-              <!-- 電子郵件 -->
-              <div class="form-group">
-                <label for="email" class="form-label">電子郵件 *</label>
-                <div class="input-text">
-                  <InputText
-                    id="email"
-                    v-model="form.email"
-                    type="email"
-                    placeholder="請輸入電子郵件"
-                    :disabled="loading"
-                    class="w-full"
-                  />
-                </div>
-              </div>
-              <p v-if="errors.email" class="error-text">{{ errors.email }}</p>
-
-              <!-- 登入帳號 -->
-              <div class="form-group">
-                <label for="username" class="form-label">登入帳號 *</label>
-                <div class="input-text">
-                  <InputText
-                    id="username"
-                    v-model="form.username"
-                    type="text"
-                    placeholder="聊天室使用帳號"
-                    :disabled="loading"
-                    :loading="checkingUsername"
-                    class="w-full"
-                  />
-                </div>
-              </div>
-              <p v-if="errors.username" class="error-text">
-                {{ errors.username }}
-              </p>
-
-              <!-- 帳號密碼 -->
-              <div class="form-group">
-                <label for="password" class="form-label">帳號密碼 *</label>
-                <div class="input-text password-field">
-                  <Password
-                    id="password"
-                    v-model="form.password"
-                    placeholder="聊天室帳號密碼"
-                    :disabled="loading"
-                    autocomplete="new-password"
-                    class="w-full"
-                    :feedback="false"
-                    toggleMask
-                  />
-                </div>
-              </div>
-              <p v-if="errors.password" class="error-text">
-                {{ errors.password }}
-              </p>
-
-              <!-- 重複密碼 -->
-              <div class="form-group">
-                <label for="repassword" class="form-label">重複密碼 *</label>
-                <div class="input-text password-field">
-                  <Password
-                    id="repassword"
-                    v-model="form.confirmPassword"
-                    placeholder="再次輸入密碼"
-                    :disabled="loading"
-                    autocomplete="new-password"
-                    class="w-full"
-                    :feedback="false"
-                    toggleMask
-                  />
-                </div>
-              </div>
-              <p v-if="errors.confirmPassword" class="error-text">
-                {{ errors.confirmPassword }}
-              </p>
-
-              <!-- 按鈕組 -->
-              <div class="button-group">
-                <Button
-                  class="cancel-button"
-                  severity="secondary"
-                  @click="navigateTo('/login')"
-                  :disabled="loading"
-                  outlined
-                  label="取消"
-                />
-                <Button
-                  type="submit"
-                  class="register-button"
-                  :loading="loading"
-                  :disabled="loading"
-                  :label="loading ? '註冊中...' : '註冊'"
-                />
-              </div>
-            </form>
-
-            <!-- 錯誤訊息 -->
-            <Message
-              v-if="userStore.error"
-              severity="error"
-              :closable="false"
-              class="my-4"
-            >
-              {{ userStore.error }}
-            </Message>
-          </div>
-        </template>
-      </Card>
+              <!-- 錯誤訊息 -->
+              <Message
+                v-if="userStore.error"
+                severity="error"
+                :closable="false"
+                class="my-4"
+              >
+                {{ userStore.error }}
+              </Message>
+            </div>
+          </template>
+        </Card>
+      </ClientOnly>
     </div>
   </div>
 </template>

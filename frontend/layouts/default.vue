@@ -63,82 +63,86 @@ const showNavbar = computed(() => {
           <!-- 右側按鈕 -->
           <div class="flex items-center gap-2">
             <!-- 主題切換 -->
-            <Button
-              @click="toggleDarkMode"
-              :icon="isDark ? 'pi pi-sun' : 'pi pi-moon'"
-              text
-              rounded
-              :aria-label="isDark ? '切換到亮色主題' : '切換到暗色主題'"
-            />
+            <ClientOnly>
+              <Button
+                @click="toggleDarkMode"
+                :icon="isDark ? 'pi pi-sun' : 'pi pi-moon'"
+                text
+                rounded
+                :aria-label="isDark ? '切換到亮色主題' : '切換到暗色主題'"
+              />
+            </ClientOnly>
 
             <!-- 未登入狀態 -->
-            <template v-if="!userStore.isAuthenticated">
-              <!-- 首頁：顯示登入/註冊 -->
-              <template v-if="route.path === '/'">
+            <ClientOnly>
+              <template v-if="!userStore.isAuthenticated">
+                <!-- 首頁：顯示登入/註冊 -->
+                <template v-if="route.path === '/'">
+                  <Button
+                    @click="navigateTo('/login')"
+                    label="登入"
+                    icon="pi pi-sign-in"
+                    outlined
+                  />
+                  <Button
+                    @click="navigateTo('/register')"
+                    label="註冊"
+                    icon="pi pi-user-plus"
+                  />
+                </template>
+
+                <!-- 登入頁面：顯示返回首頁 -->
+                <template v-else-if="route.path === '/login'">
+                  <Button
+                    @click="navigateTo('/')"
+                    label="返回首頁"
+                    icon="pi pi-home"
+                    text
+                  />
+                  <Button
+                    @click="navigateTo('/register')"
+                    label="註冊"
+                    icon="pi pi-user-plus"
+                    outlined
+                  />
+                </template>
+
+                <!-- 註冊頁面：顯示返回首頁和登入 -->
+                <template v-else-if="route.path === '/register'">
+                  <Button
+                    @click="navigateTo('/')"
+                    label="返回首頁"
+                    icon="pi pi-home"
+                    text
+                  />
+                  <Button
+                    @click="navigateTo('/login')"
+                    label="登入"
+                    icon="pi pi-sign-in"
+                    outlined
+                  />
+                </template>
+              </template>
+
+              <!-- 已登入狀態 -->
+              <template v-else>
+                <span class="text-sm text-emerald-700 mr-2">
+                  歡迎，{{ userStore.displayName }}
+                </span>
                 <Button
-                  @click="navigateTo('/login')"
-                  label="登入"
-                  icon="pi pi-sign-in"
+                  @click="navigateTo('/chatroom')"
+                  label="聊天室"
+                  icon="pi pi-comments"
                   outlined
                 />
                 <Button
-                  @click="navigateTo('/register')"
-                  label="註冊"
-                  icon="pi pi-user-plus"
+                  @click="logout"
+                  label="登出"
+                  icon="pi pi-sign-out"
+                  severity="secondary"
                 />
               </template>
-
-              <!-- 登入頁面：顯示返回首頁 -->
-              <template v-else-if="route.path === '/login'">
-                <Button
-                  @click="navigateTo('/')"
-                  label="返回首頁"
-                  icon="pi pi-home"
-                  text
-                />
-                <Button
-                  @click="navigateTo('/register')"
-                  label="註冊"
-                  icon="pi pi-user-plus"
-                  outlined
-                />
-              </template>
-
-              <!-- 註冊頁面：顯示返回首頁和登入 -->
-              <template v-else-if="route.path === '/register'">
-                <Button
-                  @click="navigateTo('/')"
-                  label="返回首頁"
-                  icon="pi pi-home"
-                  text
-                />
-                <Button
-                  @click="navigateTo('/login')"
-                  label="登入"
-                  icon="pi pi-sign-in"
-                  outlined
-                />
-              </template>
-            </template>
-
-            <!-- 已登入狀態 -->
-            <template v-else>
-              <span class="text-sm text-emerald-700 mr-2">
-                歡迎，{{ userStore.user?.username }}
-              </span>
-              <Button
-                @click="navigateTo('/chatroom')"
-                label="聊天室"
-                icon="pi pi-comments"
-                outlined
-              />
-              <Button
-                @click="logout"
-                label="登出"
-                icon="pi pi-sign-out"
-                severity="secondary"
-              />
-            </template>
+            </ClientOnly>
           </div>
         </div>
       </div>
