@@ -1,7 +1,8 @@
 from flask_appbuilder.api import ModelRestApi
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from flask import request, jsonify, g
-from flask_appbuilder.security.decorators import has_access
+# from flask_appbuilder.security.decorators import has_access
+from .auth import jwt_required
 from flask_appbuilder import expose
 import datetime
 from datetime import timezone
@@ -83,7 +84,7 @@ class ChatMessageApi(ModelRestApi):
         return hasattr(g.user, 'roles') and any(role.name == 'Admin' for role in g.user.roles)
 
     @expose('/recent/<int:limit>')
-    @has_access
+    @jwt_required
     def recent_messages(self, limit=50):
         """
         取得最近的訊息
@@ -113,7 +114,7 @@ class ChatMessageApi(ModelRestApi):
         })
 
     @expose('/send', methods=['POST'])
-    @has_access
+    @jwt_required
     def send_message(self):
         """
         發送新訊息
@@ -159,7 +160,7 @@ class ChatMessageApi(ModelRestApi):
             return jsonify({'error': f'發送失敗: {str(e)}'}), 500
 
     @expose('/history')
-    @has_access
+    @jwt_required
     def message_history(self):
         """
         取得歷史訊息（游標式分頁）
@@ -203,7 +204,7 @@ class ChatMessageApi(ModelRestApi):
         })
 
     @expose('/delete/<int:message_id>', methods=['POST'])
-    @has_access
+    @jwt_required
     def soft_delete_message(self, message_id):
         """
         軟刪除訊息 (只有發送者或管理員可刪除)
@@ -279,7 +280,7 @@ class UserProfileApi(ModelRestApi):
         return hasattr(g.user, 'roles') and any(role.name == 'Admin' for role in g.user.roles)
 
     @expose('/me')
-    @has_access
+    @jwt_required
     def get_my_profile(self):
         """
         取得當前使用者的個人資料
@@ -305,7 +306,7 @@ class UserProfileApi(ModelRestApi):
         })
 
     @expose('/update-profile', methods=['POST'])
-    @has_access
+    @jwt_required
     def update_my_profile(self):
         """
         更新當前使用者的個人資料
@@ -341,7 +342,7 @@ class UserProfileApi(ModelRestApi):
             return jsonify({'error': f'更新失敗: {str(e)}'}), 500
 
     @expose('/online-users')
-    @has_access
+    @jwt_required
     def get_online_users(self):
         """
         取得線上使用者列表
@@ -360,7 +361,7 @@ class UserProfileApi(ModelRestApi):
         })
 
     @expose('/set-online-status', methods=['POST'])
-    @has_access
+    @jwt_required
     def set_online_status(self):
         """
         設定線上狀態
@@ -403,6 +404,7 @@ class ChatChannelApi(ModelRestApi):
     
     # 🔒 安全性：禁用危險的 REST 端點，只保留自定義端點
     base_permissions = [
+
         'can_get_public_channels',
         'can_create_channel',
         'can_get_my_channels'
@@ -448,7 +450,7 @@ class ChatChannelApi(ModelRestApi):
         return hasattr(g.user, 'roles') and any(role.name == 'Admin' for role in g.user.roles)
 
     @expose('/public-channels')
-    @has_access
+    @jwt_required
     def get_public_channels(self):
         """
         取得公開頻道列表 (包含最新訊息)
@@ -498,7 +500,7 @@ class ChatChannelApi(ModelRestApi):
         })
 
     @expose('/create-channel', methods=['POST'])
-    @has_access
+    @jwt_required
     def create_channel(self):
         """
         建立新頻道
@@ -558,7 +560,7 @@ class ChatChannelApi(ModelRestApi):
             return jsonify({'error': f'建立失敗: {str(e)}'}), 500
 
     @expose('/my-channels')
-    @has_access
+    @jwt_required
     def get_my_channels(self):
         """
         取得我建立的頻道 (包含最新訊息)
