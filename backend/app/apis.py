@@ -36,6 +36,9 @@ class ChatMessageApi(ModelRestApi):
 
     # 單頁最大筆數限制
     max_page_size = 100
+    
+    # 🔒 安全性：禁用危險的 REST 端點
+    base_permissions = []
 
     def pre_add(self, obj):
         """在添加前自動設定sender_id"""
@@ -43,8 +46,41 @@ class ChatMessageApi(ModelRestApi):
         obj.channel_id = getattr(obj, 'channel_id', 1)  # 預設頻道
 
     def pre_update(self, obj):
-        """防止修改sender_id"""
-        pass
+        """🔒 安全檢查：用戶只能修改自己的訊息"""
+        if not g.user:
+            raise Exception("未認證")
+        if obj.sender_id != g.user.id and not self._is_admin():
+            raise Exception("無權限修改其他用戶的訊息")
+    
+    def pre_delete(self, obj):
+        """🔒 安全檢查：用戶只能刪除自己的訊息"""
+        if not g.user:
+            raise Exception("未認證")
+        if obj.sender_id != g.user.id and not self._is_admin():
+            raise Exception("無權限刪除其他用戶的訊息")
+    
+    def pre_get(self, obj):
+        """🔒 安全檢查：檢查用戶是否有權限查看該訊息的頻道"""
+        if not g.user:
+            raise Exception("未認證")
+        # 檢查用戶是否有權限存取該頻道的訊息
+        if not self._can_access_channel(obj.channel_id):
+            raise Exception("無權限查看此頻道的訊息")
+    
+    def _can_access_channel(self, channel_id):
+        """檢查用戶是否有權限存取指定頻道"""
+        from .models import ChatChannel
+        channel = self.datamodel.session.query(ChatChannel).filter(ChatChannel.id == channel_id).first()
+        if not channel:
+            return False
+        # 公開頻道所有人都可以存取，私人頻道需要是創建者
+        if not channel.is_private:
+            return True
+        return channel.creator_id == g.user.id or self._is_admin()
+    
+    def _is_admin(self):
+        """檢查當前用戶是否為管理員"""
+        return hasattr(g.user, 'roles') and any(role.name == 'Admin' for role in g.user.roles)
 
     @expose('/recent/<int:limit>')
     @has_access
@@ -205,11 +241,42 @@ class UserProfileApi(ModelRestApi):
 
     # 預設排序
     base_order = ('join_date', 'desc')
+    
+    # 🔒 安全性：禁用不安全的端點
+    # 禁用列出所有用戶的端點
+    list_template = None
+    # 禁用 REST API 的危險端點
+    base_permissions = []
 
     def pre_add(self, obj):
         """在添加前自動設定user_id"""
         obj.user_id = g.user.id
         obj.join_date = datetime.datetime.now(timezone.utc)
+    
+    def pre_get(self, obj):
+        """🔒 安全檢查：用戶只能查看自己的 profile"""
+        if not g.user:
+            raise Exception("未認證")
+        if obj.user_id != g.user.id and not self._is_admin():
+            raise Exception("無權限查看其他用戶的個人資料")
+    
+    def pre_update(self, obj):
+        """🔒 安全檢查：用戶只能修改自己的 profile"""  
+        if not g.user:
+            raise Exception("未認證")
+        if obj.user_id != g.user.id and not self._is_admin():
+            raise Exception("無權限修改其他用戶的個人資料")
+    
+    def pre_delete(self, obj):
+        """🔒 安全檢查：用戶只能刪除自己的 profile"""
+        if not g.user:
+            raise Exception("未認證")
+        if obj.user_id != g.user.id and not self._is_admin():
+            raise Exception("無權限刪除其他用戶的個人資料")
+    
+    def _is_admin(self):
+        """檢查當前用戶是否為管理員"""
+        return hasattr(g.user, 'roles') and any(role.name == 'Admin' for role in g.user.roles)
 
     @expose('/me')
     @has_access
@@ -334,12 +401,8 @@ class ChatChannelApi(ModelRestApi):
 
     allow_browser_login = True
     
-    # 設定基本權限，允許已認證使用者存取
+    # 🔒 安全性：禁用危險的 REST 端點，只保留自定義端點
     base_permissions = [
-        'can_get',
-        'can_put', 
-        'can_post',
-        'can_delete',
         'can_get_public_channels',
         'can_create_channel',
         'can_get_my_channels'
@@ -357,6 +420,32 @@ class ChatChannelApi(ModelRestApi):
     def pre_add(self, obj):
         """在添加前自動設定creator_id"""
         obj.creator_id = g.user.id
+    
+    def pre_get(self, obj):
+        """🔒 安全檢查：用戶只能查看有權限的頻道"""
+        if not g.user:
+            raise Exception("未認證")
+        # 公開頻道所有人都可以查看，私人頻道只有創建者可以查看
+        if obj.is_private and obj.creator_id != g.user.id and not self._is_admin():
+            raise Exception("無權限查看此私人頻道")
+    
+    def pre_update(self, obj):
+        """🔒 安全檢查：用戶只能修改自己創建的頻道"""
+        if not g.user:
+            raise Exception("未認證")
+        if obj.creator_id != g.user.id and not self._is_admin():
+            raise Exception("無權限修改此頻道")
+    
+    def pre_delete(self, obj):
+        """🔒 安全檢查：用戶只能刪除自己創建的頻道"""
+        if not g.user:
+            raise Exception("未認證")
+        if obj.creator_id != g.user.id and not self._is_admin():
+            raise Exception("無權限刪除此頻道")
+    
+    def _is_admin(self):
+        """檢查當前用戶是否為管理員"""
+        return hasattr(g.user, 'roles') and any(role.name == 'Admin' for role in g.user.roles)
 
     @expose('/public-channels')
     @has_access

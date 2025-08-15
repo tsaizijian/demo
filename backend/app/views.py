@@ -29,6 +29,16 @@ class ChatMessageView(ModelView):
     
     base_order = ('created_on', 'desc')
     base_permissions = ['can_list', 'can_show', 'can_delete']
+    
+    # 🔒 限制只有管理員可以存取
+    def is_accessible(self):
+        return self._is_admin()
+    
+    def _is_admin(self):
+        from flask import g
+        return (hasattr(g, 'user') and g.user and 
+                hasattr(g.user, 'roles') and 
+                any(role.name == 'Admin' for role in g.user.roles))
 
 
 class UserProfileView(ModelView):
@@ -40,6 +50,16 @@ class UserProfileView(ModelView):
     search_columns = ['display_name']
     
     base_order = ('join_date', 'desc')
+    
+    # 🔒 限制只有管理員可以存取
+    def is_accessible(self):
+        return self._is_admin()
+    
+    def _is_admin(self):
+        from flask import g
+        return (hasattr(g, 'user') and g.user and 
+                hasattr(g.user, 'roles') and 
+                any(role.name == 'Admin' for role in g.user.roles))
 
 
 class ChatChannelView(ModelView):
@@ -53,6 +73,16 @@ class ChatChannelView(ModelView):
     search_columns = ['name', 'description']
     
     base_order = ('created_on', 'desc')
+    
+    # 🔒 限制只有管理員可以存取
+    def is_accessible(self):
+        return self._is_admin()
+    
+    def _is_admin(self):
+        from flask import g
+        return (hasattr(g, 'user') and g.user and 
+                hasattr(g.user, 'roles') and 
+                any(role.name == 'Admin' for role in g.user.roles))
 
 
 class UserView(ModelView):
@@ -64,8 +94,17 @@ class UserView(ModelView):
     search_columns = ['username', 'first_name', 'last_name', 'email']
     
     # 只允許查看，不允許新增/編輯/刪除 (這些應該通過註冊API處理)
-
     base_order = ('created_on', 'desc')
+    
+    # 🔒 限制只有管理員可以存取
+    def is_accessible(self):
+        return self._is_admin()
+    
+    def _is_admin(self):
+        from flask import g
+        return (hasattr(g, 'user') and g.user and 
+                hasattr(g.user, 'roles') and 
+                any(role.name == 'Admin' for role in g.user.roles))
 
 
 # Register Admin Views

@@ -23,23 +23,38 @@ class JWTSecurityManager(SecurityManager):
     
     def has_access(self, permission_name, view_name):
         """
-        重寫 has_access 方法，加入 JWT token 認證
+        重寫 has_access 方法，加入 JWT token 認證並正確檢查權限
         """
         # 檢查是否為匿名使用者，如果是，嘗試 JWT 認證
+        current_user = None
         if (hasattr(g, 'user') and g.user and 
             g.user.__class__.__name__ != 'AnonymousUserMixin' and 
             hasattr(g.user, 'id')):
+            current_user = g.user
             print(f"has_access: 已認證使用者 {g.user.id}")
-            return True
-            
-        # 嘗試 JWT 認證
-        if self.jwt_authenticate_user():
+        elif self.jwt_authenticate_user():
+            current_user = g.user
             print(f"has_access: JWT 認證成功")
-            return True
+        else:
+            print(f"has_access: 無法認證，使用原有機制")
+            # 回退到原有的認證機制
+            return super(JWTSecurityManager, self).has_access(permission_name, view_name)
         
-        print(f"has_access: 無法認證，使用原有機制")
-        # 回退到原有的認證機制
-        return super(JWTSecurityManager, self).has_access(permission_name, view_name)
+        # 🔒 對於管理相關的權限，檢查用戶是否為管理員
+        admin_permissions = [
+            'can_list', 'can_show', 'can_add', 'can_edit', 'can_delete',
+            'menu_access'  # 菜單存取權限
+        ]
+        
+        if permission_name in admin_permissions:
+            # 檢查是否為管理員
+            is_admin = (hasattr(current_user, 'roles') and 
+                       any(role.name == 'Admin' for role in current_user.roles))
+            print(f"has_access: 管理權限檢查 {permission_name} for user {current_user.id}: {is_admin}")
+            return is_admin
+        
+        # 對於非管理權限，認證用戶都可以存取（如 API 端點）
+        return True
     
     def jwt_authenticate_user(self):
         """
