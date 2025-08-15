@@ -126,40 +126,43 @@ class ChatMessageApi(ModelRestApi):
     @has_access
     def message_history(self):
         """
-        取得歷史訊息 (分頁)
-        GET /api/v1/chatmessageapi/history?page=1&per_page=20&before_id=100
+        取得歷史訊息（游標式分頁）
+        GET /api/v1/chatmessageapi/history?channel_id=1&per_page=20&before_id=100
+        - 不帶 before_id：抓最新一頁
+        - 帶 before_id：抓該 id 之前的舊訊息
         """
-        page = request.args.get('page', 1, type=int)
         per_page = min(request.args.get('per_page', 20, type=int), 100)
-        before_id = request.args.get('before_id', type=int)  # 取得指定 ID 之前的訊息
+        before_id = request.args.get('before_id', type=int)
         channel_id = request.args.get('channel_id', 1, type=int)
 
-        query = (
+        q = (
             self.datamodel.session.query(ChatMessage)
-            .filter(ChatMessage.is_deleted == False)
+            .filter(ChatMessage.is_deleted.is_(False))
             .filter(ChatMessage.channel_id == channel_id)
         )
 
-        # 如果指定 before_id，取得該 ID 之前的訊息
         if before_id:
-            query = query.filter(ChatMessage.id < before_id)
+            q = q.filter(ChatMessage.id < before_id)
 
-        # 分頁查詢
-        pagination = query.order_by(ChatMessage.created_on.desc()).paginate(
-            page=page, per_page=per_page, error_out=False
+        rows = (
+            q.order_by(ChatMessage.id.desc())
+             .limit(per_page + 1)
+             .all()
         )
 
-        messages = list(reversed(pagination.items))  # 反轉讓最舊的在前面
+        has_next = len(rows) > per_page
+        if has_next:
+            rows = rows[:per_page]
+
+        rows = list(reversed(rows))
+        next_before_id = rows[0].id if has_next and rows else None
 
         return jsonify({
-            'result': [msg.to_dict() for msg in messages],
+            'result': [r.to_dict() for r in rows],
             'pagination': {
-                'page': page,
                 'per_page': per_page,
-                'total': pagination.total,
-                'pages': pagination.pages,
-                'has_next': pagination.has_next,
-                'has_prev': pagination.has_prev
+                'has_next': has_next,
+                'next_before_id': next_before_id
             }
         })
 

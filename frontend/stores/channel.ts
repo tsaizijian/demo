@@ -239,21 +239,26 @@ export const useChannelStore = defineStore("channel", {
       }
     },
 
-    // 載入歷史訊息
+    // 載入歷史訊息（游標式分頁）
     async loadHistoryMessages(channelId: number, beforeTimestamp?: string, limit: number = 20) {
       try {
         const config = useRuntimeConfig();
         const userStore = useUserStore();
 
-        // 取得最舊訊息的 ID 作為 before_id 參數
+        // 取得最舊訊息的 ID 作為 before_id 參數（游標式分頁）
         const currentMessages = this.channelMessages[channelId] || [];
         const beforeId = currentMessages.length > 0 && currentMessages[0] ? currentMessages[0].id : undefined;
 
-        // 構建查詢參數 (使用後端期望的格式)
+        console.log('Loading history messages:', {
+          channelId,
+          beforeId,
+          currentMessagesCount: currentMessages.length
+        });
+
+        // 構建查詢參數（游標式，不使用 page）
         const params = new URLSearchParams({
           channel_id: channelId.toString(),
           per_page: limit.toString(),
-          page: '1',
         });
 
         if (beforeId) {
@@ -261,7 +266,13 @@ export const useChannelStore = defineStore("channel", {
         }
 
         // 呼叫歷史訊息 API
-        const response = await $fetch<ApiResponse<ChannelMessage[]>>(
+        const response = await $fetch<{
+          result: ChannelMessage[];
+          pagination?: {
+            has_next: boolean;
+            next_before_id?: number;
+          };
+        }>(
           `${config.public.apiBase}/api/v1/chatmessageapi/history?${params.toString()}`,
           {
             credentials: "include",
@@ -273,6 +284,12 @@ export const useChannelStore = defineStore("channel", {
         );
 
         if (response && response.result) {
+          console.log('History API response:', {
+            messageCount: response.result.length,
+            hasNext: response.pagination?.has_next,
+            nextBeforeId: response.pagination?.next_before_id
+          });
+
           // 將歷史訊息插入到現有訊息列表的開頭
           if (!this.channelMessages[channelId]) {
             this.channelMessages[channelId] = [];
@@ -282,23 +299,32 @@ export const useChannelStore = defineStore("channel", {
           const existingIds = new Set(this.channelMessages[channelId].map(m => m.id));
           const newMessages = response.result.filter(m => !existingIds.has(m.id));
           
-          // 將新的歷史訊息加到列表開頭
+          console.log('Adding history messages:', {
+            newMessagesCount: newMessages.length,
+            duplicatesFiltered: response.result.length - newMessages.length
+          });
+          
+          // 將新的歷史訊息加到列表開頭（使用 Vue 3 響應性更新）
           this.channelMessages[channelId] = [...newMessages, ...this.channelMessages[channelId]];
           
-          return { success: true, messages: response.result };
+          return { 
+            success: true, 
+            messages: response.result,
+            hasNext: response.pagination?.has_next ?? false
+          };
         }
 
-        return { success: false, error: "No history messages found", messages: [] };
+        return { success: false, error: "No history messages found", messages: [], hasNext: false };
       } catch (error: any) {
         console.error("載入歷史訊息失敗:", error);
         
         // 如果 API 不存在，返回空結果而不是錯誤
         if (error.status === 404) {
           console.warn("歷史訊息 API 尚未實作，跳過載入");
-          return { success: false, error: "History API not implemented", messages: [] };
+          return { success: false, error: "History API not implemented", messages: [], hasNext: false };
         }
         
-        return { success: false, error: error.message, messages: [] };
+        return { success: false, error: error.message, messages: [], hasNext: false };
       }
     },
 
