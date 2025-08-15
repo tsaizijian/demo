@@ -159,3 +159,13 @@ Flask-AppBuilder 的 `@has_access` 裝飾器設計為與 Flask-Login session 認
                                        ↓
                        讓 @has_access 也能用在 API 端點（仍可保留 @jwt_required）
 ```
+
+┌─────────────────┐ ← Admin UI (高權限)
+│ 管理界面 │ - 可以刪除所有資料
+│ ChatMessageView │ - 可以修改系統設定
+└─────────────────┘ - 可以管理用戶權限
+
+┌─────────────────┐ ← User API (基本權限)
+│ 聊天 API │ - 只能操作自己的資料
+│ ChatMessageApi │ - 有業務邏輯限制
+└─────────────────┘ - 受資源存取控制
