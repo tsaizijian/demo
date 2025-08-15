@@ -53,10 +53,7 @@
       </div>
 
       <!-- 正在輸入指示器 -->
-      <div
-        v-if="typingUsers.length > 0"
-        class="typing-indicator mt-4"
-      >
+      <div v-if="typingUsers.length > 0" class="typing-indicator mt-4">
         <span>{{ typingUsers.join(", ") }} 正在輸入</span>
         <div class="typing-dot"></div>
         <div class="typing-dot"></div>
@@ -88,9 +85,7 @@ const messagesContainer = ref(null);
 const typingUsers = ref([]);
 
 /** 連線狀態顯示 */
-const connectionStatus = computed(() =>
-  isConnected() ? "已連線" : "未連線"
-);
+const connectionStatus = computed(() => (isConnected() ? "已連線" : "未連線"));
 const connectionStatusClass = computed(() =>
   isConnected() ? "bg-green-500" : "bg-red-500"
 );
@@ -100,15 +95,6 @@ const activeChannel = computed(() => channelStore.currentChannel || null);
 const activeMessages = computed(() => {
   const list = channelStore.currentChannelMessages;
   return Array.isArray(list) ? list : [];
-});
-
-/** 頭像首字（SSR 安全） */
-const avatarInitial = computed(() => {
-  const name = activeChannel.value?.name;
-  if (typeof name === "string" && name.length > 0) {
-    return name[0].toUpperCase();
-  }
-  return "?";
 });
 
 /** 是否顯示發送者名稱（避免 undefined 時間/欄位） */

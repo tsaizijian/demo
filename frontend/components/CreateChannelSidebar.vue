@@ -1,186 +1,180 @@
 <template>
-  <aside class="w-64 border-l border-gray-200 flex flex-col">
+  <Card class="create-channel-sidebar">
     <!-- 標題 -->
-    <div class="p-4 border-b border-gray-200 bg-white">
+    <template #header>
       <div class="flex items-center justify-between">
-        <h2 class="text-lg font-semibold text-gray-900">建立新頻道</h2>
-        <UButton
+        <h2 class="text-lg font-semibold">建立新頻道</h2>
+        <Button
           @click="$emit('back')"
-          variant="ghost"
-          size="xs"
-          icon="i-heroicons-arrow-left"
-          title="返回頻道列表"
+          icon="pi pi-arrow-left"
+          text
+          rounded
+          size="small"
+          class="back-button"
+          v-tooltip.bottom="'返回頻道列表'"
         />
       </div>
-    </div>
+    </template>
 
     <!-- 表單內容 -->
-    <div class="flex-1 overflow-y-auto p-4">
+    <template #content>
+      <div class="create-form">
       <p class="text-sm text-gray-600 mb-4">
         建立一個新的聊天頻道，讓團隊成員可以在此進行討論。
       </p>
 
       <form @submit.prevent="handleCreateChannel" class="space-y-4">
-        <!-- 頻道名稱 -->
-        <div>
-          <label
-            for="channel-name"
-            class="block text-sm font-medium text-gray-700 mb-1"
-          >
-            頻道名稱 <span class="text-red-500">*</span>
-          </label>
-          <UInput
-            id="channel-name"
-            v-model="form.name"
-            placeholder="例如：general、random、dev-team"
-            :disabled="loading"
-            required
-            maxlength="50"
-            icon="i-heroicons-hashtag"
-          />
-          <p v-if="errors.name" class="mt-1 text-sm text-red-600">
-            {{ errors.name }}
-          </p>
-          <p class="mt-1 text-xs text-gray-500">
-            頻道名稱將會自動轉為小寫，空格會被替換為連字符
-          </p>
-        </div>
+          <!-- 頻道名稱 -->
+          <div class="form-group">
+            <label for="channel-name" class="form-label">
+              頻道名稱 <span class="text-red-500">*</span>
+            </label>
+            <InputText
+              id="channel-name"
+              v-model="form.name"
+              placeholder="例如：general、random、dev-team"
+              :disabled="loading"
+              required
+              maxlength="50"
+              class="w-full"
+            />
+            <small v-if="errors.name" class="form-error">
+              {{ errors.name }}
+            </small>
+            <small class="form-help">
+              頻道名稱將會自動轉為小寫，空格會被替換為連字符
+            </small>
+          </div>
 
-        <!-- 頻道描述 -->
-        <div>
-          <label
-            for="channel-description"
-            class="block text-sm font-medium text-gray-700 mb-1"
-          >
-            頻道描述
-          </label>
-          <UTextarea
-            id="channel-description"
-            v-model="form.description"
-            placeholder="描述這個頻道的用途..."
-            :disabled="loading"
-            :rows="3"
-            maxlength="200"
-          />
-          <p v-if="errors.description" class="mt-1 text-sm text-red-600">
-            {{ errors.description }}
-          </p>
-        </div>
+          <!-- 頻道描述 -->
+          <div class="form-group">
+            <label for="channel-description" class="form-label">
+              頻道描述
+            </label>
+            <Textarea
+              id="channel-description"
+              v-model="form.description"
+              placeholder="描述這個頻道的用途..."
+              :disabled="loading"
+              :rows="3"
+              maxlength="200"
+              class="w-full"
+            />
+            <small v-if="errors.description" class="form-error">
+              {{ errors.description }}
+            </small>
+          </div>
 
         <!-- 頻道設定 -->
         <div class="space-y-3">
           <div class="text-sm font-medium text-gray-700">頻道設定</div>
 
           <!-- 私人頻道 -->
-          <div class="flex items-start gap-3">
-            <input
-              id="is-private"
-              type="checkbox"
-              v-model="form.is_private"
-              :disabled="loading"
-              class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mt-0.5"
-            />
-            <div class="flex-1">
-              <label
-                for="is-private"
-                class="text-sm font-medium text-gray-700 cursor-pointer"
-              >
-                私人頻道
-              </label>
-              <p class="text-xs text-gray-500">
-                只有受邀請的成員才能看到和加入此頻道
-              </p>
+          <div class="form-group">
+            <div class="flex items-start gap-3">
+              <Checkbox
+                v-model="form.is_private"
+                inputId="is-private"
+                :disabled="loading"
+                binary
+              />
+              <div class="flex-1">
+                <label for="is-private" class="form-label cursor-pointer">
+                  私人頻道
+                </label>
+                <small class="form-help">
+                  只有受邀請的成員才能看到和加入此頻道
+                </small>
+              </div>
             </div>
           </div>
 
           <!-- 最大成員數 -->
-          <div>
-            <label
-              for="max-members"
-              class="block text-sm font-medium text-gray-700 mb-1"
-            >
+          <div class="form-group">
+            <label for="max-members" class="form-label">
               最大成員數
             </label>
-            <UInput
+            <InputNumber
               id="max-members"
-              v-model.number="form.max_members"
-              type="number"
-              min="2"
-              max="1000"
+              v-model="form.max_members"
+              :min="2"
+              :max="1000"
               :disabled="loading"
               placeholder="100"
-              icon="i-heroicons-user-group"
+              class="w-full"
+              showButtons
             />
-            <p v-if="errors.max_members" class="mt-1 text-sm text-red-600">
+            <small v-if="errors.max_members" class="form-error">
               {{ errors.max_members }}
-            </p>
+            </small>
           </div>
         </div>
 
-        <!-- 預覽 -->
-        <div v-if="form.name" class="bg-gray-50 rounded-lg p-3">
-          <div class="text-xs font-medium text-gray-500 uppercase mb-2">
-            預覽
+          <!-- 預覽 -->
+          <div v-if="form.name" class="preview-section">
+            <div class="preview-title">
+              預覽
+            </div>
+            <div class="flex items-center preview-content">
+              <i
+                :class="
+                  form.is_private
+                    ? 'pi pi-lock'
+                    : 'pi pi-hashtag'
+                "
+                class="preview-icon"
+              ></i>
+              {{ normalizeChannelName(form.name) }}
+              <Tag
+                v-if="form.is_private"
+                value="私人"
+                severity="warn"
+                class="ml-2"
+              />
+            </div>
+            <small v-if="form.description" class="preview-description">
+              {{ form.description }}
+            </small>
           </div>
-          <div class="flex items-center text-sm text-gray-700">
-            <UIcon
-              :name="
-                form.is_private
-                  ? 'i-heroicons-lock-closed'
-                  : 'i-heroicons-hashtag'
-              "
-              class="w-4 h-4 mr-2"
-            />
-            {{ normalizeChannelName(form.name) }}
-            <UBadge
-              v-if="form.is_private"
-              label="私人"
-              color="orange"
-              variant="soft"
-              size="xs"
-              class="ml-2"
-            />
-          </div>
-          <p v-if="form.description" class="text-xs text-gray-500 mt-1">
-            {{ form.description }}
-          </p>
-        </div>
 
-        <!-- 錯誤訊息 -->
-        <UAlert
-          v-if="channelStore.error"
-          icon="i-heroicons-exclamation-triangle"
-          color="red"
-          variant="soft"
-          :title="channelStore.error"
-        />
-      </form>
-    </div>
+          <!-- 錯誤訊息 -->
+          <Message
+            v-if="channelStore.error"
+            severity="error"
+            :closable="true"
+            @close="channelStore.clearError()"
+          >
+            {{ channelStore.error }}
+          </Message>
+        </form>
+      </div>
+    </template>
 
     <!-- 底部按鈕 -->
-    <div class="p-4 border-t border-gray-200 bg-white">
-      <div class="flex gap-2">
-        <UButton
-          color="gray"
-          variant="soft"
-          @click="$emit('back')"
-          :disabled="loading"
-          class="flex-1"
-        >
-          取消
-        </UButton>
-        <UButton
-          @click="handleCreateChannel"
-          :loading="loading"
-          :disabled="loading || !form.name.trim()"
-          icon="i-heroicons-plus"
-          class="flex-1"
-        >
-          {{ loading ? "建立中..." : "建立頻道" }}
-        </UButton>
+    <template #footer>
+      <div class="form-actions">
+        <div class="flex gap-2">
+          <Button
+            severity="secondary"
+            outlined
+            @click="$emit('back')"
+            :disabled="loading"
+            class="flex-1"
+            label="取消"
+          />
+          <Button
+            @click="handleCreateChannel"
+            :loading="loading"
+            :disabled="loading || !form.name.trim()"
+            icon="pi pi-plus"
+            class="flex-1"
+            :label="loading ? '建立中...' : '建立頻道'"
+            severity="success"
+          />
+        </div>
       </div>
-    </div>
-  </aside>
+    </template>
+  </Card>
 </template>
 
 <script setup>
@@ -318,21 +312,217 @@ watch(
 </script>
 
 <style scoped>
+/* 建立頻道側邊欄卡片樣式 */
+.create-channel-sidebar {
+  width: 20rem;
+  max-width: 320px;
+  height: 100vh;
+  border: 0;
+  border-radius: 0;
+  border-left: 1px solid var(--surface-border);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  background: linear-gradient(135deg, var(--surface-50) 0%, var(--surface-100) 100%);
+}
+
+.create-channel-sidebar :deep(.p-card-header) {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  border-bottom: 1px solid var(--surface-border);
+  padding: 1rem;
+}
+
+.create-channel-sidebar :deep(.p-card-content) {
+  padding: 0;
+  height: calc(100% - 140px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.create-channel-sidebar :deep(.p-card-footer) {
+  background: var(--surface-50);
+  border-top: 1px solid var(--surface-border);
+  padding: 1rem;
+}
+
+/* 返回按鈕樣式 */
+.back-button {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border: none !important;
+  backdrop-filter: blur(10px);
+}
+
+.back-button:hover {
+  background: rgba(255, 255, 255, 0.2) !important;
+  transform: scale(1.05);
+}
+
+/* 建立表單 */
+.create-form {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+  background: var(--surface-0);
+}
+
+.create-form > p {
+  color: var(--text-color-secondary);
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+/* 表單組件 */
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-label {
+  display: block;
+  font-weight: 600;
+  color: var(--text-color);
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.form-error {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--red-500);
+  font-size: 0.75rem;
+}
+
+.form-help {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--text-color-secondary);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+/* 頻道設定區域 */
+.space-y-3 > * + * {
+  margin-top: 0.75rem;
+}
+
+.space-y-3 > .text-sm {
+  font-weight: 600;
+  color: var(--text-color);
+  margin-bottom: 0.75rem;
+}
+
+/* 預覽區域 */
+.preview-section {
+  background: var(--surface-100);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid var(--surface-border);
+}
+
+.preview-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-color-secondary);
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+  letter-spacing: 0.025em;
+}
+
+.preview-content {
+  font-size: 0.875rem;
+  color: var(--text-color);
+  font-weight: 500;
+}
+
+.preview-icon {
+  width: 1rem;
+  height: 1rem;
+  margin-right: 0.5rem;
+  color: var(--text-color-secondary);
+}
+
+.preview-description {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--text-color-secondary);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+/* 底部動作按鈕 */
+.form-actions {
+  padding: 0;
+}
+
 /* 自訂滾動條樣式 */
-.overflow-y-auto::-webkit-scrollbar {
+.create-form::-webkit-scrollbar {
   width: 4px;
 }
 
-.overflow-y-auto::-webkit-scrollbar-track {
+.create-form::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.overflow-y-auto::-webkit-scrollbar-thumb {
-  background: #cbd5e0;
-  border-radius: 2px;
+.create-form::-webkit-scrollbar-thumb {
+  background: var(--surface-300);
+  border-radius: 4px;
 }
 
-.overflow-y-auto::-webkit-scrollbar-thumb:hover {
-  background: #a0aec0;
+.create-form::-webkit-scrollbar-thumb:hover {
+  background: var(--surface-400);
+}
+
+/* 動畫效果 */
+.create-channel-sidebar {
+  animation: slideInLeft 0.3s ease-out;
+}
+
+.create-form {
+  animation: fadeInUp 0.4s ease-out;
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 響應式設計 */
+@media (max-width: 768px) {
+  .create-channel-sidebar {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+/* 暗色主題支援 */
+@media (prefers-color-scheme: dark) {
+  .create-channel-sidebar {
+    background: linear-gradient(135deg, var(--surface-800) 0%, var(--surface-900) 100%);
+  }
+  
+  .create-form {
+    background: var(--surface-800);
+  }
+  
+  .preview-section {
+    background: var(--surface-700);
+  }
 }
 </style>
