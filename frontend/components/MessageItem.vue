@@ -17,7 +17,7 @@
         own: isOwnMessage,
         other: !isOwnMessage,
       }"
-      @contextmenu.prevent="(event) => showContextMenu(event, message.id)"
+      @contextmenu.prevent="(event) => handleContextMenu(event)"
     >
       <!-- 消息內容 -->
       <div class="message-content">
@@ -27,13 +27,10 @@
 
     <!-- 右鍵選單 -->
     <Menu
-      v-if="isMenuVisible(message.id)"
       ref="contextMenu"
       :model="contextMenuItems"
       :popup="true"
       class="message-context-menu"
-      :style="contextMenuState.position"
-      @click.stop
     />
 
     <!-- 時間戳 -->
@@ -52,7 +49,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted } from "vue";
+import { computed, ref, onMounted, onUnmounted } from "vue";
 import { useChannelStore } from "~/stores/channel";
 import { useUserStore } from "~/stores/user";
 import { useSocket } from "~/composables/useSocket";
@@ -74,11 +71,18 @@ const props = defineProps({
 const channelStore = useChannelStore();
 const userStore = useUserStore();
 const { deleteMessage: socketDeleteMessage, isConnected } = useSocket();
-const { contextMenuState, showContextMenu, hideContextMenu, isMenuVisible } =
-  useContextMenu();
+const { setCurrentMessageId, clearCurrentMessageId, getCurrentMessageId } = useContextMenu();
+
+// Menu ref
+const contextMenu = ref();
 
 // 右鍵選單項目
 const contextMenuItems = computed(() => {
+  // 只有當前訊息被右鍵時才顯示選單項目
+  if (getCurrentMessageId() !== props.message.id) {
+    return [];
+  }
+
   const items = [
     {
       label: "回覆",
@@ -119,8 +123,15 @@ const detailedTime = computed(() => {
   return getDetailedTime(props.message.created_on);
 });
 
+// 處理右鍵菜單
+const handleContextMenu = (event) => {
+  setCurrentMessageId(props.message.id);
+  contextMenu.value?.toggle(event);
+};
+
 const handleDelete = async () => {
-  hideContextMenu();
+  contextMenu.value?.hide();
+  clearCurrentMessageId();
   if (confirm("確定要刪除這則訊息嗎？")) {
     if (isConnected()) {
       socketDeleteMessage(props.message.id);
@@ -131,27 +142,15 @@ const handleDelete = async () => {
 };
 
 const handleReply = () => {
-  hideContextMenu();
+  contextMenu.value?.hide();
+  clearCurrentMessageId();
   // TODO: 實現回覆功能
   alert("回覆功能開發中...");
 };
 
-// 監聽點擊事件關閉選單
-const handleGlobalClick = (event) => {
-  const contextMenu = event.target.closest(".message-context-menu");
-  if (!contextMenu) {
-    hideContextMenu();
-  }
-};
-
-onMounted(() => {
-  document.addEventListener("click", handleGlobalClick);
-  document.addEventListener("scroll", hideContextMenu);
-});
-
+// 清理
 onUnmounted(() => {
-  document.removeEventListener("click", handleGlobalClick);
-  document.removeEventListener("scroll", hideContextMenu);
+  clearCurrentMessageId();
 });
 </script>
 

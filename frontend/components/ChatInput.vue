@@ -207,7 +207,7 @@ onMounted(() => {
   margin: 0 0 0.5rem 0;
   height: 2.75rem;
   border-radius: 0.75rem;
-  background: var(--primary-color);
+  background: aliceblue;
   color: var(--primary-color-text);
   border: none;
   cursor: pointer;

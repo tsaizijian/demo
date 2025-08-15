@@ -152,6 +152,7 @@ const showNavbar = computed(() => {
       <slot></slot>
     </main>
     <Toast />
+    <ConfirmPopup />
   </div>
 </template>
 

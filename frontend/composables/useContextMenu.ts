@@ -1,44 +1,25 @@
-import { ref, reactive } from 'vue'
+import { ref } from 'vue'
 
-interface ContextMenuState {
-  visible: boolean
-  position: {
-    top: string
-    left: string
-  }
-  messageId: string | null
-}
-
-const contextMenuState = reactive<ContextMenuState>({
-  visible: false,
-  position: { top: '0px', left: '0px' },
-  messageId: null
-})
+// 記錄當前被右鍵的訊息ID
+const currentMessageId = ref<string | null>(null)
 
 export const useContextMenu = () => {
-  const showContextMenu = (event: MouseEvent, messageId: string) => {
-    const { clientX, clientY } = event
-    contextMenuState.position = {
-      top: `${clientY}px`,
-      left: `${clientX}px`
-    }
-    contextMenuState.messageId = messageId
-    contextMenuState.visible = true
+  const setCurrentMessageId = (messageId: string) => {
+    currentMessageId.value = messageId
   }
 
-  const hideContextMenu = () => {
-    contextMenuState.visible = false
-    contextMenuState.messageId = null
+  const clearCurrentMessageId = () => {
+    currentMessageId.value = null
   }
 
-  const isMenuVisible = (messageId: string) => {
-    return contextMenuState.visible && contextMenuState.messageId === messageId
+  const getCurrentMessageId = () => {
+    return currentMessageId.value
   }
 
   return {
-    contextMenuState,
-    showContextMenu,
-    hideContextMenu,
-    isMenuVisible
+    currentMessageId,
+    setCurrentMessageId,
+    clearCurrentMessageId,
+    getCurrentMessageId
   }
 }
