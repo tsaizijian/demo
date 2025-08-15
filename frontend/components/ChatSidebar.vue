@@ -6,10 +6,10 @@
         <div class="user-info-content">
           <!-- 用戶頭像和資訊 -->
           <div class="flex items-center gap-3">
-            <Avatar 
-              :label="userInitials" 
+            <Avatar
+              :label="userInitials"
               class="user-avatar"
-              shape="circle" 
+              shape="circle"
               size="large"
             />
             <div class="user-details">
@@ -19,19 +19,23 @@
                   <div class="user-name">訪客</div>
                 </template>
               </ClientOnly>
-              
+
               <!-- 連線狀態 -->
               <ClientOnly>
                 <div class="connection-status">
-                  <Badge 
-                    :value="connectionStatus" 
+                  <Badge
+                    :value="connectionStatus"
                     :severity="connectionBadgeSeverity"
                     class="status-badge"
                   />
                 </div>
                 <template #fallback>
                   <div class="connection-status">
-                    <Badge value="連線中..." severity="secondary" class="status-badge" />
+                    <Badge
+                      value="連線中..."
+                      severity="secondary"
+                      class="status-badge"
+                    />
                   </div>
                 </template>
               </ClientOnly>
@@ -64,21 +68,6 @@
     </Card>
 
     <!-- 聊天室標題 -->
-    <div class="section-header">
-      <h3 class="section-title">
-        <i class="pi pi-comments"></i>
-        聊天頻道
-      </h3>
-      <Button
-        icon="pi pi-plus"
-        severity="success"
-        text
-        rounded
-        size="small"
-        v-tooltip.bottom="'新增頻道'"
-        @click="$emit('create-channel')"
-      />
-    </div>
 
     <!-- 聊天室清單 -->
     <div class="channel-list">
@@ -123,17 +112,15 @@ const props = defineProps({
   },
 });
 
-// 定義事件
-const emit = defineEmits(["show-user-settings", "logout", "create-channel"]);
-
 const userStore = useUserStore();
 
 // 計算用戶姓名縮寫
 const userInitials = computed(() => {
-  const name = userStore.displayName || '訪客';
-  return name.split(' ')
-    .map(word => word.charAt(0))
-    .join('')
+  const name = userStore.displayName || "訪客";
+  return name
+    .split(" ")
+    .map((word) => word.charAt(0))
+    .join("")
     .substring(0, 2)
     .toUpperCase();
 });
@@ -141,14 +128,14 @@ const userInitials = computed(() => {
 // 連線狀態徽章樣式
 const connectionBadgeSeverity = computed(() => {
   switch (props.connectionStatus) {
-    case '已連線':
-      return 'success';
-    case '連線中...':
-      return 'info';
-    case '重新連線中...':
-      return 'warn';
+    case "已連線":
+      return "success";
+    case "連線中...":
+      return "info";
+    case "重新連線中...":
+      return "warn";
     default:
-      return 'danger';
+      return "danger";
   }
 });
 </script>
@@ -218,7 +205,8 @@ const connectionBadgeSeverity = computed(() => {
   gap: 0.25rem;
 }
 
-.settings-button, .logout-button {
+.settings-button,
+.logout-button {
   width: 2rem;
   height: 2rem;
 }
@@ -313,7 +301,8 @@ const connectionBadgeSeverity = computed(() => {
 }
 
 /* 動畫效果 */
-.user-info-card, .section-header {
+.user-info-card,
+.section-header {
   animation: fadeInDown 0.3s ease-out;
 }
 
@@ -353,12 +342,12 @@ const connectionBadgeSeverity = computed(() => {
     width: 100%;
     max-width: none;
   }
-  
+
   .user-info-card {
     margin: 0.5rem;
     margin-bottom: 0.25rem;
   }
-  
+
   .section-header {
     padding: 0.75rem;
     padding-bottom: 0.25rem;

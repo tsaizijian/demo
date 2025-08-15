@@ -88,7 +88,7 @@ onMounted(async () => {
   const socket = connect();
 
   // 監聽瀏覽器關閉事件
-  if (process.client) {
+  if (import.meta.client) {
     window.addEventListener("beforeunload", handleBeforeUnload);
   }
 
@@ -119,7 +119,7 @@ onUnmounted(() => {
   disconnect();
 
   // 移除事件監聽器
-  if (process.client) {
+  if (import.meta.client) {
     window.removeEventListener("beforeunload", handleBeforeUnload);
   }
 });

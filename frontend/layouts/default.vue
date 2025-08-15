@@ -16,7 +16,7 @@ const isDark = ref(false);
 
 const toggleDarkMode = () => {
   isDark.value = !isDark.value;
-  if (process.client) {
+  if (import.meta.client) {
     document.documentElement.classList.toggle("dark", isDark.value);
     localStorage.setItem("theme", isDark.value ? "dark" : "light");
   }
@@ -24,7 +24,7 @@ const toggleDarkMode = () => {
 
 // 初始化主題
 onMounted(() => {
-  if (process.client) {
+  if (import.meta.client) {
     const savedTheme = localStorage.getItem("theme");
     isDark.value = savedTheme === "dark";
     document.documentElement.classList.toggle("dark", isDark.value);

@@ -234,7 +234,7 @@ useHead({
 
 // 檢查認證狀態，已登入用戶自動導向聊天室
 onMounted(async () => {
-  if (process.client) {
+  if (import.meta.client) {
     userStore.initAuth();
 
     if (userStore.isAuthenticated) {
