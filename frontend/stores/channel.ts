@@ -239,6 +239,69 @@ export const useChannelStore = defineStore("channel", {
       }
     },
 
+    // 載入歷史訊息
+    async loadHistoryMessages(channelId: number, beforeTimestamp?: string, limit: number = 20) {
+      try {
+        const config = useRuntimeConfig();
+        const userStore = useUserStore();
+
+        // 取得最舊訊息的 ID 作為 before_id 參數
+        const currentMessages = this.channelMessages[channelId] || [];
+        const beforeId = currentMessages.length > 0 && currentMessages[0] ? currentMessages[0].id : undefined;
+
+        // 構建查詢參數 (使用後端期望的格式)
+        const params = new URLSearchParams({
+          channel_id: channelId.toString(),
+          per_page: limit.toString(),
+          page: '1',
+        });
+
+        if (beforeId) {
+          params.append('before_id', beforeId.toString());
+        }
+
+        // 呼叫歷史訊息 API
+        const response = await $fetch<ApiResponse<ChannelMessage[]>>(
+          `${config.public.apiBase}/api/v1/chatmessageapi/history?${params.toString()}`,
+          {
+            credentials: "include",
+            headers: {
+              Authorization: `Bearer ${userStore.accessToken}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        if (response && response.result) {
+          // 將歷史訊息插入到現有訊息列表的開頭
+          if (!this.channelMessages[channelId]) {
+            this.channelMessages[channelId] = [];
+          }
+          
+          // 避免重複訊息
+          const existingIds = new Set(this.channelMessages[channelId].map(m => m.id));
+          const newMessages = response.result.filter(m => !existingIds.has(m.id));
+          
+          // 將新的歷史訊息加到列表開頭
+          this.channelMessages[channelId] = [...newMessages, ...this.channelMessages[channelId]];
+          
+          return { success: true, messages: response.result };
+        }
+
+        return { success: false, error: "No history messages found", messages: [] };
+      } catch (error: any) {
+        console.error("載入歷史訊息失敗:", error);
+        
+        // 如果 API 不存在，返回空結果而不是錯誤
+        if (error.status === 404) {
+          console.warn("歷史訊息 API 尚未實作，跳過載入");
+          return { success: false, error: "History API not implemented", messages: [] };
+        }
+        
+        return { success: false, error: error.message, messages: [] };
+      }
+    },
+
     // 獲取頻道成員
     async fetchChannelMembers(channelId: number) {
       try {

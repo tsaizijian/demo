@@ -27,6 +27,25 @@
     <!-- 訊息列表 -->
     <template #content>
       <div ref="messagesContainer" class="chat-messages" @scroll="handleScroll">
+        <!-- 歷史訊息載入指示器 -->
+        <div
+          v-if="isLoadingHistory && hasMoreHistory"
+          class="history-loading-indicator"
+        >
+          <div class="loading-content">
+            <i class="pi pi-spin pi-spinner loading-icon"></i>
+            <span class="loading-text">載入歷史訊息...</span>
+          </div>
+        </div>
+
+        <!-- 沒有更多歷史訊息提示 -->
+        <div
+          v-else-if="!hasMoreHistory && (activeMessages?.length ?? 0) > 0"
+          class="no-more-history"
+        >
+          <span class="no-more-text">已顯示所有訊息</span>
+        </div>
+
         <div
           v-if="(activeMessages?.length ?? 0) === 0"
           class="empty-messages-state"
@@ -38,7 +57,7 @@
           </div>
         </div>
 
-        <div v-else class="space-y-4">
+        <div v-else class="messages-list">
           <MessageItem
             v-for="(message, index) in activeMessages ?? []"
             :key="message.id ?? `m-${index}`"
@@ -63,6 +82,20 @@
             <div class="typing-dot"></div>
           </div>
         </div>
+
+        <!-- 跳到底部按鈕 -->
+        <Transition name="scroll-to-bottom">
+          <div v-if="showScrollToBottom" class="scroll-to-bottom-container">
+            <Button
+              @click="scrollToBottom(true)"
+              icon="pi pi-chevron-down"
+              rounded
+              class="scroll-to-bottom-btn"
+              v-tooltip.top="'跳到最新訊息'"
+              severity="secondary"
+            />
+          </div>
+        </Transition>
       </div>
     </template>
 
@@ -91,6 +124,14 @@ const messagesContainer = ref(null);
 // 正在輸入的用戶列表
 const typingUsers = ref([]);
 const typingTimers = ref(new Map());
+
+// 歷史訊息載入狀態
+const isLoadingHistory = ref(false);
+const hasMoreHistory = ref(true);
+const lastScrollTop = ref(0);
+
+// 顯示跳到底部按鈕
+const showScrollToBottom = ref(false);
 
 /** 智能顯示正在輸入的文字 */
 const typingDisplayText = computed(() => {
@@ -144,15 +185,83 @@ const shouldShowSenderName = (message, index) => {
 };
 
 /** 滾至底部（SSR/CSR 安全） */
-const scrollToBottom = () => {
+const scrollToBottom = (smooth = false) => {
   nextTick(() => {
     const el = messagesContainer.value;
-    if (el) el.scrollTop = el.scrollHeight;
+    if (el) {
+      if (smooth) {
+        // 用於新訊息的平滑滾動
+        el.scrollTo({
+          top: el.scrollHeight,
+          behavior: "smooth",
+        });
+      } else {
+        // 用於初始載入的立即跳轉
+        el.scrollTop = el.scrollHeight;
+      }
+    }
   });
 };
 
-const handleScroll = () => {
-  // 之後可在此實作上拉載入歷史訊息
+const handleScroll = async () => {
+  const container = messagesContainer.value;
+  if (!container) return;
+
+  // 檢查是否接近底部 (100px 閾值內視為底部)
+  const isNearBottom =
+    container.scrollTop + container.clientHeight >=
+    container.scrollHeight - 100;
+  showScrollToBottom.value = !isNearBottom;
+
+  // 歷史訊息載入邏輯
+  if (
+    !isLoadingHistory.value &&
+    hasMoreHistory.value &&
+    container.scrollTop <= 50
+  ) {
+    // 記錄當前滾動位置和容器高度
+    const previousScrollHeight = container.scrollHeight;
+    const previousScrollTop = container.scrollTop;
+
+    isLoadingHistory.value = true;
+
+    try {
+      // 取得當前頻道的最舊訊息時間作為參考點
+      const oldestMessage = activeMessages.value?.[0];
+      const beforeTimestamp = oldestMessage?.created_on;
+
+      // 載入歷史訊息
+      const result = await channelStore.loadHistoryMessages(
+        activeChannel.value?.id,
+        beforeTimestamp,
+        20 // 每次載入 20 條
+      );
+
+      if (result.success && result.messages?.length > 0) {
+        // 等待 DOM 更新
+        await nextTick();
+
+        // 計算新的滾動位置，保持用戶當前查看的訊息位置
+        const newScrollHeight = container.scrollHeight;
+        const scrollDiff = newScrollHeight - previousScrollHeight;
+        container.scrollTop = previousScrollTop + scrollDiff;
+
+        // 如果返回的訊息少於請求數量，表示沒有更多歷史訊息
+        if (result.messages.length < 20) {
+          hasMoreHistory.value = false;
+        }
+      } else {
+        hasMoreHistory.value = false;
+      }
+    } catch (error) {
+      console.error("載入歷史訊息失敗:", error);
+    } finally {
+      isLoadingHistory.value = false;
+    }
+  }
+
+  // 記錄當前滾動位置
+  lastScrollTop.value = container.scrollTop;
 };
 
 /** 切換頻道時載入訊息並滾到底 */
@@ -160,15 +269,33 @@ watch(
   activeChannel,
   async (newChannel) => {
     if (newChannel?.id) {
+      // 重置歷史訊息載入狀態
+      isLoadingHistory.value = false;
+      hasMoreHistory.value = true;
+      lastScrollTop.value = 0;
+      showScrollToBottom.value = false; // 重置跳到底部按鈕
+
       await channelStore.fetchChannelMessages(newChannel.id);
-      scrollToBottom();
+      scrollToBottom(false); // 切換頻道時立即跳到底部
     }
   },
   { immediate: false }
 );
 
 /** 新訊息到達自動滾動 */
-watch(activeMessages, () => scrollToBottom(), { deep: true });
+watch(
+  activeMessages,
+  (newMessages, oldMessages) => {
+    // 只有當訊息數量增加時才滾動到底部（新訊息）
+    if (newMessages && oldMessages && newMessages.length > oldMessages.length) {
+      scrollToBottom(true); // 新訊息使用平滑滾動
+    } else if (newMessages && !oldMessages) {
+      // 初始載入時立即跳到底部
+      scrollToBottom(false);
+    }
+  },
+  { deep: true }
+);
 
 /** 處理正在輸入事件 */
 const handleUserTyping = (data) => {
@@ -236,7 +363,7 @@ watch(
 );
 
 onMounted(() => {
-  scrollToBottom();
+  scrollToBottom(false); // 頁面載入時立即跳到底部
 });
 
 onUnmounted(() => {
@@ -249,13 +376,26 @@ onUnmounted(() => {
 <style scoped>
 /* 聊天區域卡片樣式 */
 .chat-area-card {
-  height: 100vh;
   flex: 1;
-  border: 0;
+  height: 100vh;
   border-radius: 0;
-  background: var(--surface-0);
+  flex-direction: column;
+}
+
+/* 關鍵修復：確保 PrimeVue Card 的完整 flex 鏈 */
+.chat-area-card :deep(.p-card) {
   display: flex;
   flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.chat-area-card :deep(.p-card-body) {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding: 0;
 }
 
 .chat-area-card :deep(.p-card-header) {
@@ -271,6 +411,8 @@ onUnmounted(() => {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  min-height: 0; /* 關鍵修復：確保 flex 子元素可以收縮 */
+  background: aliceblue;
 }
 
 .chat-area-card :deep(.p-card-footer) {
@@ -314,10 +456,13 @@ onUnmounted(() => {
 .chat-messages {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 1rem;
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  min-height: 0; /* 關鍵修復：確保可以滾動 */
+  max-height: 100%; /* 確保不會超出容器 */
   background: radial-gradient(
       circle at 20px 20px,
       var(--surface-100) 1px,
@@ -330,6 +475,59 @@ onUnmounted(() => {
     );
   background-size: 80px 80px;
   background-position: 0 0, 40px 40px;
+}
+
+/* 訊息列表容器 */
+.messages-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  flex-shrink: 0; /* 防止壓縮，讓內容可以滾動 */
+  background-color: aliceblue;
+}
+
+/* 歷史訊息載入指示器 */
+.history-loading-indicator {
+  display: flex;
+  justify-content: center;
+  padding: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.loading-content {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: var(--surface-100);
+  border-radius: 1rem;
+  border: 1px solid var(--surface-border);
+}
+
+.loading-icon {
+  font-size: 0.875rem;
+  color: var(--primary-color);
+}
+
+.loading-text {
+  font-size: 0.875rem;
+  color: var(--text-color-secondary);
+  font-style: italic;
+}
+
+/* 沒有更多歷史訊息提示 */
+.no-more-history {
+  display: flex;
+  justify-content: center;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.no-more-text {
+  font-size: 0.75rem;
+  color: var(--text-color-secondary);
+  opacity: 0.7;
+  font-style: italic;
 }
 
 /* 空狀態設計 */
@@ -511,6 +709,55 @@ onUnmounted(() => {
   }
 }
 
+/* 跳到底部按鈕 */
+.scroll-to-bottom-container {
+  position: absolute;
+  bottom: 1rem;
+  right: 1rem;
+  z-index: 10;
+}
+
+.scroll-to-bottom-btn {
+  background: var(--surface-0) !important;
+  border: 1px solid var(--surface-border) !important;
+  box-shadow: var(--shadow-3) !important;
+  color: var(--text-color) !important;
+  transition: all 0.2s ease !important;
+}
+
+.scroll-to-bottom-btn:hover {
+  background: var(--surface-100) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: var(--shadow-4) !important;
+}
+
+.scroll-to-bottom-btn:active {
+  transform: translateY(0) !important;
+  box-shadow: var(--shadow-2) !important;
+}
+
+/* 跳到底部按鈕動畫 */
+.scroll-to-bottom-enter-active,
+.scroll-to-bottom-leave-active {
+  transition: all 0.3s ease;
+}
+
+.scroll-to-bottom-enter-from {
+  opacity: 0;
+  transform: translateY(20px) scale(0.8);
+}
+
+.scroll-to-bottom-leave-to {
+  opacity: 0;
+  transform: translateY(20px) scale(0.8);
+}
+
+.scroll-to-bottom-enter-to,
+.scroll-to-bottom-leave-from {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
 /* 暗色主題支援 */
 @media (prefers-color-scheme: dark) {
   .chat-messages {
@@ -530,6 +777,20 @@ onUnmounted(() => {
 
   .typing-indicator {
     background: var(--surface-700);
+  }
+
+  .loading-content {
+    background: var(--surface-700);
+    border-color: var(--surface-600);
+  }
+
+  .scroll-to-bottom-btn {
+    background: var(--surface-800) !important;
+    border-color: var(--surface-600) !important;
+  }
+
+  .scroll-to-bottom-btn:hover {
+    background: var(--surface-700) !important;
   }
 }
 </style>

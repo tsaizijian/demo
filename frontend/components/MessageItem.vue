@@ -226,16 +226,15 @@ onUnmounted(() => {
 }
 
 .message-bubble.own {
-  background: var(--primary-color);
   color: var(--primary-color-text);
   border-bottom-right-radius: 0.375rem;
-  background-color: #42b66d !important;
+  background-color: #42b66d;
 }
 
 .message-bubble.other {
   background: var(--surface-0);
   color: var(--text-color);
-  border: 1px solid var(--surface-border);
+  border: 1px solid;
   border-bottom-left-radius: 0.375rem;
 }
 
