@@ -585,6 +585,7 @@ class ChatChannelApi(ModelRestApi):
         channels = (
             self.datamodel.session.query(ChatChannel)
             .filter(ChatChannel.creator_id == g.user.id)
+            .filter(ChatChannel.is_active == True)
             .order_by(ChatChannel.created_on.desc())
             .all()
         )
@@ -619,3 +620,204 @@ class ChatChannelApi(ModelRestApi):
             'result': result,
             'count': len(result)
         })
+    @expose("/delete-channel/<int:channel_id>", methods=["POST"])
+    @jwt_required
+    def delete_channel(self, channel_id):
+        """
+        軟刪除聊天室 (設定 is_active = False)
+        POST /api/v1/chatchannelapi/delete-channel/123
+        """
+        try:
+            # 詳細的認證檢查
+            if not hasattr(g, "user") or not g.user:
+                return jsonify({"error": "未登入或認證失敗"}), 401
+            
+            # 檢查是否為匿名使用者
+            if g.user.__class__.__name__ == "AnonymousUserMixin":
+                return jsonify({"error": "未認證使用者"}), 401
+            
+            # 檢查使用者是否有 id 屬性
+            if not hasattr(g.user, "id"):
+                return jsonify({"error": "使用者物件無效"}), 401
+                
+            print(f"刪除頻道請求 - 認證成功: user_id={g.user.id}, username={getattr(g.user, 'username', 'N/A')}")
+            
+            # 查詢頻道
+            channel = self.datamodel.get(channel_id)
+            if not channel:
+                return jsonify({"error": "頻道不存在"}), 404
+            
+            # 檢查頻道是否已經被刪除
+            if not channel.is_active:
+                return jsonify({"error": "頻道已被刪除"}), 400
+            
+            # 權限檢查：只有創建者或管理員可以刪除
+            is_admin = hasattr(g.user, "roles") and any(role.name == "Admin" for role in g.user.roles)
+            is_creator = channel.creator_id == g.user.id
+            
+            if not (is_creator or is_admin):
+                return jsonify({"error": "沒有權限刪除此頻道"}), 403
+            
+            # 防止刪除預設頻道 (ID = 1)
+            if channel.id == 1:
+                return jsonify({"error": "無法刪除預設頻道"}), 400
+            
+            # 軟刪除：設定 is_active = False
+            channel.is_active = False
+            channel.changed_by_fk = g.user.id
+            channel.changed_on = datetime.datetime.now(timezone.utc)
+            
+            # 儲存變更
+            self.datamodel.edit(channel)
+            
+            print(f"頻道 {channel.name} (ID: {channel.id}) 已被用戶 {g.user.username} 軟刪除")
+            
+            return jsonify({
+                "message": f"頻道 \"{channel.name}\" 已成功刪除",
+                "data": {
+                    "channel_id": channel.id,
+                    "channel_name": channel.name,
+                    "deleted_by": g.user.username,
+                    "deleted_at": channel.changed_on.isoformat()
+                }
+            }), 200
+
+        except Exception as e:
+            # 回滾資料庫變更
+            self.datamodel.session.rollback()
+            # 印出詳細錯誤供調試
+            import traceback
+            print(f"刪除頻道時發生錯誤: {str(e)}")
+            print(f"錯誤堆疊: {traceback.format_exc()}")
+            return jsonify({"error": f"刪除失敗: {str(e)}"}), 500
+
+    @expose("/restore-channel/<int:channel_id>", methods=["POST"])
+    @jwt_required
+    def restore_channel(self, channel_id):
+        """
+        恢復已刪除的聊天室 (設定 is_active = True)
+        POST /api/v1/chatchannelapi/restore-channel/123
+        """
+        try:
+            # 詳細的認證檢查
+            if not hasattr(g, "user") or not g.user:
+                return jsonify({"error": "未登入或認證失敗"}), 401
+            
+            # 檢查是否為匿名使用者
+            if g.user.__class__.__name__ == "AnonymousUserMixin":
+                return jsonify({"error": "未認證使用者"}), 401
+            
+            # 檢查使用者是否有 id 屬性
+            if not hasattr(g.user, "id"):
+                return jsonify({"error": "使用者物件無效"}), 401
+                
+            print(f"恢復頻道請求 - 認證成功: user_id={g.user.id}, username={getattr(g.user, 'username', 'N/A')}")
+            
+            # 查詢頻道 (包含已刪除的)
+            channel = self.datamodel.session.query(ChatChannel).filter(ChatChannel.id == channel_id).first()
+            if not channel:
+                return jsonify({"error": "頻道不存在"}), 404
+            
+            # 檢查頻道是否已經是啟用狀態
+            if channel.is_active:
+                return jsonify({"error": "頻道並未被刪除"}), 400
+            
+            # 權限檢查：只有創建者或管理員可以恢復
+            is_admin = hasattr(g.user, "roles") and any(role.name == "Admin" for role in g.user.roles)
+            is_creator = channel.creator_id == g.user.id
+            
+            if not (is_creator or is_admin):
+                return jsonify({"error": "沒有權限恢復此頻道"}), 403
+            
+            # 恢復：設定 is_active = True
+            channel.is_active = True
+            channel.changed_by_fk = g.user.id
+            channel.changed_on = datetime.datetime.now(timezone.utc)
+            
+            # 儲存變更
+            self.datamodel.edit(channel)
+            
+            print(f"頻道 {channel.name} (ID: {channel.id}) 已被用戶 {g.user.username} 恢復")
+            
+            return jsonify({
+                "message": f"頻道 \"{channel.name}\" 已成功恢復",
+                "data": {
+                    "channel_id": channel.id,
+                    "channel_name": channel.name,
+                    "restored_by": g.user.username,
+                    "restored_at": channel.changed_on.isoformat()
+                }
+            }), 200
+
+        except Exception as e:
+            # 回滾資料庫變更
+            self.datamodel.session.rollback()
+            # 印出詳細錯誤供調試
+            import traceback
+            print(f"恢復頻道時發生錯誤: {str(e)}")
+            print(f"錯誤堆疊: {traceback.format_exc()}")
+            return jsonify({"error": f"恢復失敗: {str(e)}"}), 500
+
+    @expose("/deleted-channels")
+    @jwt_required
+    def get_deleted_channels(self):
+        """
+        取得已刪除的頻道列表 (只有管理員或創建者可以存取)
+        GET /api/v1/chatchannelapi/deleted-channels
+        """
+        try:
+            # 詳細的認證檢查
+            if not hasattr(g, "user") or not g.user:
+                return jsonify({"error": "未登入或認證失敗"}), 401
+            
+            # 檢查是否為匿名使用者
+            if g.user.__class__.__name__ == "AnonymousUserMixin":
+                return jsonify({"error": "未認證使用者"}), 401
+            
+            # 檢查使用者是否有 id 屬性
+            if not hasattr(g.user, "id"):
+                return jsonify({"error": "使用者物件無效"}), 401
+                
+            print(f"查詢已刪除頻道 - 認證成功: user_id={g.user.id}, username={getattr(g.user, 'username', 'N/A')}")
+            
+            # 權限檢查：只有管理員或創建者可以查看已刪除的頻道
+            is_admin = hasattr(g.user, "roles") and any(role.name == "Admin" for role in g.user.roles)
+            
+            if is_admin:
+                # 管理員可以查看所有已刪除的頻道
+                deleted_channels = (
+                    self.datamodel.session.query(ChatChannel)
+                    .filter(ChatChannel.is_active == False)
+                    .order_by(ChatChannel.changed_on.desc())
+                    .all()
+                )
+            else:
+                # 一般用戶只能查看自己創建的已刪除頻道
+                deleted_channels = (
+                    self.datamodel.session.query(ChatChannel)
+                    .filter(ChatChannel.is_active == False)
+                    .filter(ChatChannel.creator_id == g.user.id)
+                    .order_by(ChatChannel.changed_on.desc())
+                    .all()
+                )
+            
+            # 轉換為字典格式
+            result = []
+            for channel in deleted_channels:
+                channel_data = channel.to_dict()
+                channel_data["status"] = "deleted"
+                channel_data["deleted_at"] = channel_data.get("changed_on")
+                result.append(channel_data)
+            
+            return jsonify({
+                "result": result,
+                "count": len(result)
+            })
+
+        except Exception as e:
+            # 印出詳細錯誤供調試
+            import traceback
+            print(f"查詢已刪除頻道時發生錯誤: {str(e)}")
+            print(f"錯誤堆疊: {traceback.format_exc()}")
+            return jsonify({"error": f"查詢失敗: {str(e)}"}), 500
+

@@ -79,14 +79,16 @@
                   </div>
 
                   <!-- 頻道設定按鈕 -->
-                  <Button
-                    v-if="isChannelAdmin(channel.id)"
-                    @click.stop="openChannelSettings(channel)"
-                    icon="pi pi-cog"
-                    text
-                    size="small"
-                    class="ml-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                  />
+                  <div v-if="canDeleteChannel(channel)" class="ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button
+                      @click.stop="toggleChannelMenu(channel, $event)"
+                      icon="pi pi-cog"
+                      text
+                      size="small"
+                      class="channel-menu-button"
+                      :data-channel-id="channel.id"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -158,14 +160,16 @@
                   </div>
 
                   <!-- 頻道設定按鈕 -->
-                  <Button
-                    v-if="isChannelAdmin(channel.id)"
-                    @click.stop="openChannelSettings(channel)"
-                    icon="pi pi-cog"
-                    text
-                    size="small"
-                    class="ml-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                  />
+                  <div v-if="canDeleteChannel(channel)" class="ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button
+                      @click.stop="toggleChannelMenu(channel, $event)"
+                      icon="pi pi-cog"
+                      text
+                      size="small"
+                      class="channel-menu-button"
+                      :data-channel-id="channel.id"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -225,16 +229,53 @@
       {{ channelStore.error }}
     </Message>
   </Card>
+
+  <!-- 頻道設定選單 -->
+  <Popover ref="channelMenuPanel" class="channel-menu-panel">
+    <div class="channel-menu-content">
+      <div class="menu-header">
+        <h4 class="text-sm font-semibold text-gray-700 mb-2">頻道設定</h4>
+      </div>
+      <Button
+        @click="editChannel"
+        icon="pi pi-pencil"
+        label="編輯頻道"
+        text
+        size="small"
+        class="w-full justify-start"
+      />
+      <Button
+        @click="confirmDeleteChannel"
+        icon="pi pi-trash"
+        label="刪除頻道"
+        text
+        size="small"
+        severity="danger"
+        class="w-full justify-start"
+      />
+    </div>
+  </Popover>
+
+  <!-- 刪除確認對話框 -->
+  <ConfirmPopup />
 </template>
 
 <script setup>
 import { useChannelStore } from "~/stores/channel";
 import { useUserStore } from "~/stores/user";
+import { useConfirm } from "primevue/useconfirm";
+import { useToast } from "primevue/usetoast";
 
 // 不再需要 emit 事件，直接操作 store
 
 const channelStore = useChannelStore();
 const userStore = useUserStore();
+const confirm = useConfirm();
+const toast = useToast();
+
+// refs
+const channelMenuPanel = ref(null);
+let selectedChannelForMenu = ref(null);
 
 // 組件方法
 const switchChannel = async (channel) => {
@@ -264,6 +305,88 @@ const isChannelAdmin = (channelId) => {
   const member = members.find((m) => m.user_id === userStore.currentUser?.id);
 
   return member?.role === "admin" || member?.role === "owner";
+};
+
+// 檢查是否可以刪除頻道
+const canDeleteChannel = (channel) => {
+  console.log('檢查頻道刪除權限:', {
+    channel: channel,
+    userProfile: userStore.userProfile,
+    creator_id: channel.creator_id,
+    user_id: userStore.userProfile?.user_id,
+    canDelete: channelStore.canDeleteChannel(channel)
+  });
+  return channelStore.canDeleteChannel(channel);
+};
+
+// 切換頻道選單
+const toggleChannelMenu = (channel, event) => {
+  selectedChannelForMenu.value = channel;
+  channelMenuPanel.value.toggle(event);
+};
+
+// 編輯頻道
+const editChannel = () => {
+  if (selectedChannelForMenu.value) {
+    channelStore.openChannelSettings(selectedChannelForMenu.value);
+    channelMenuPanel.value.hide();
+  }
+};
+
+// 確認刪除頻道
+const confirmDeleteChannel = () => {
+  if (!selectedChannelForMenu.value) return;
+
+  const channel = selectedChannelForMenu.value;
+  
+  confirm.require({
+    target: event.currentTarget,
+    message: `確定要刪除頻道「${channel.name}」嗎？`,
+    header: '刪除頻道',
+    icon: 'pi pi-exclamation-triangle',
+    acceptLabel: '刪除',
+    rejectLabel: '取消',
+    acceptClass: 'p-button-danger',
+    accept: async () => {
+      await deleteChannel(channel.id);
+    },
+    reject: () => {
+      channelMenuPanel.value.hide();
+    }
+  });
+};
+
+// 刪除頻道
+const deleteChannel = async (channelId) => {
+  try {
+    const result = await channelStore.deleteChannel(channelId);
+    
+    if (result.success) {
+      toast.add({
+        severity: 'success',
+        summary: '成功',
+        detail: '頻道已成功刪除',
+        life: 3000
+      });
+    } else {
+      toast.add({
+        severity: 'error',
+        summary: '錯誤',
+        detail: result.error || '刪除頻道失敗',
+        life: 5000
+      });
+    }
+  } catch (error) {
+    console.error('刪除頻道時發生錯誤:', error);
+    toast.add({
+      severity: 'error',
+      summary: '錯誤',
+      detail: '刪除頻道時發生未知錯誤',
+      life: 5000
+    });
+  } finally {
+    channelMenuPanel.value.hide();
+  }
 };
 
 // 時間格式化方法 - 針對聊天頻道列表優化
@@ -469,5 +592,47 @@ onMounted(async () => {
   .channel-item-tg.bg-blue-50 {
     background: var(--primary-900) !important;
   }
+}
+
+/* 頻道設定選單樣式 */
+.channel-menu-panel {
+  min-width: 180px;
+}
+
+.channel-menu-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 1rem;
+}
+
+.menu-header {
+  border-bottom: 1px solid var(--surface-200);
+  padding-bottom: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.channel-menu-content .p-button {
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  transition: all 0.15s ease;
+}
+
+.channel-menu-content .p-button:hover {
+  background-color: var(--surface-100);
+}
+
+.channel-menu-content .p-button.p-button-danger:hover {
+  background-color: var(--red-50);
+  color: var(--red-600);
+}
+
+.channel-menu-button {
+  opacity: 0.7;
+  transition: opacity 0.15s ease;
+}
+
+.channel-menu-button:hover {
+  opacity: 1;
 }
 </style>

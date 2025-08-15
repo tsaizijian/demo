@@ -8,6 +8,7 @@ import ChatArea from "~/components/ChatArea.vue";
 import UserActionBar from "~/components/UserActionBar.vue";
 import EditProfile from "~/components/EditProfile.vue";
 import CreateChannelSidebar from "~/components/CreateChannelSidebar.vue";
+import DeletedChannelsView from "~/components/DeletedChannelsView.vue";
 
 // 設定頁面元資訊
 definePageMeta({
@@ -21,7 +22,7 @@ const router = useRouter();
 const { connect, disconnect } = useSocket();
 
 // 側邊欄狀態管理
-const sidebarView = ref("chat"); // 'chat', 'settings', 'profile'
+const sidebarView = ref("chat"); // 'chat', 'settings', 'profile', 'deleted-channels'
 
 // Socket connection
 const { isConnected, isSocketConnected } = useSocket();
@@ -56,6 +57,10 @@ const showEditProfile = () => {
 
 const backToChat = () => {
   sidebarView.value = "chat";
+};
+
+const showDeletedChannels = () => {
+  sidebarView.value = "deleted-channels";
 };
 
 // 移除了右側邊欄處理，現在直接使用 channelStore.showChannelCreator
@@ -164,12 +169,18 @@ onUnmounted(() => {
         @back="backToChat"
         @edit-profile="showEditProfile"
         @logout="handleLogout"
+        @view-deleted-channels="showDeletedChannels"
       />
 
       <EditProfile
         v-if="sidebarView === 'profile'"
         @back="() => (sidebarView = 'settings')"
         @save="() => (sidebarView = 'settings')"
+      />
+
+      <DeletedChannelsView
+        v-if="sidebarView === 'deleted-channels'"
+        @close="() => (sidebarView = 'settings')"
       />
     </div>
 

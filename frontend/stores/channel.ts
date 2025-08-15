@@ -634,6 +634,145 @@ export const useChannelStore = defineStore("channel", {
       this.showChannelCreator = !this.showChannelCreator;
     },
 
+    // 刪除頻道
+    async deleteChannel(channelId: number) {
+      this.loading = true;
+      this.error = null;
+
+      try {
+        const config = useRuntimeConfig();
+        const userStore = useUserStore();
+
+        const response = await $fetch(
+          `${config.public.apiBase}/api/v1/chatchannelapi/delete-channel/${channelId}`,
+          {
+            method: "POST",
+            credentials: "include",
+            headers: {
+              Authorization: `Bearer ${userStore.accessToken}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        if (response) {
+          // 重新獲取頻道列表
+          await this.fetchChannels();
+
+          // 如果刪除的是當前頻道，切換到第一個可用頻道
+          if (this.currentChannelId === channelId) {
+            const firstAvailableChannel = this.channels[0];
+            if (firstAvailableChannel) {
+              await this.switchChannel(firstAvailableChannel.id);
+            }
+          }
+
+          return { success: true, data: response };
+        }
+
+        return { success: false, error: "Failed to delete channel" };
+      } catch (error: any) {
+        console.error("刪除頻道失敗:", error);
+        this.error = error.data?.message || error.message || "刪除頻道失敗";
+        return { success: false, error: this.error };
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    // 恢復頻道
+    async restoreChannel(channelId: number) {
+      this.loading = true;
+      this.error = null;
+
+      try {
+        const config = useRuntimeConfig();
+        const userStore = useUserStore();
+
+        const response = await $fetch(
+          `${config.public.apiBase}/api/v1/chatchannelapi/restore-channel/${channelId}`,
+          {
+            method: "POST",
+            credentials: "include",
+            headers: {
+              Authorization: `Bearer ${userStore.accessToken}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        if (response) {
+          // 重新獲取頻道列表
+          await this.fetchChannels();
+
+          return { success: true, data: response };
+        }
+
+        return { success: false, error: "Failed to restore channel" };
+      } catch (error: any) {
+        console.error("恢復頻道失敗:", error);
+        this.error = error.data?.message || error.message || "恢復頻道失敗";
+        return { success: false, error: this.error };
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    // 獲取已刪除的頻道列表
+    async fetchDeletedChannels() {
+      this.loading = true;
+      this.error = null;
+
+      try {
+        const config = useRuntimeConfig();
+        const userStore = useUserStore();
+
+        const response = await $fetch<ApiResponse<Channel[]>>(
+          `${config.public.apiBase}/api/v1/chatchannelapi/deleted-channels`,
+          {
+            credentials: "include",
+            headers: {
+              Authorization: `Bearer ${userStore.accessToken}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        if (response && response.result) {
+          return { success: true, data: response.result };
+        }
+
+        return { success: false, error: "No deleted channels found" };
+      } catch (error: any) {
+        console.error("獲取已刪除頻道失敗:", error);
+        this.error = error.data?.message || error.message || "獲取已刪除頻道失敗";
+        return { success: false, error: this.error };
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    // 檢查是否可以刪除頻道
+    canDeleteChannel(channel: Channel): boolean {
+      const userStore = useUserStore();
+      console.log('Channel store 檢查刪除權限:', {
+        hasUserProfile: !!userStore.userProfile,
+        userProfileUserId: userStore.userProfile?.user_id,
+        channelId: channel.id,
+        creatorId: channel.creator_id,
+        isDefaultChannel: channel.id === 1,
+        match: channel.creator_id === userStore.userProfile?.user_id
+      });
+      
+      if (!userStore.userProfile) return false;
+
+      // 防止刪除預設頻道 (ID = 1)
+      if (channel.id === 1) return false;
+
+      // 檢查是否為創建者 (目前只允許創建者刪除)
+      return channel.creator_id === userStore.userProfile.user_id;
+    },
+
     // 重置狀態
     reset() {
       this.channels = [];

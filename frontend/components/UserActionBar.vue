@@ -81,6 +81,20 @@
           </div>
         </div>
 
+        <!-- 已刪除頻道 -->
+        <div class="action-item" @click="$emit('view-deleted-channels')">
+          <div class="action-icon bg-orange-100">
+            <i class="pi pi-trash text-orange-600"></i>
+          </div>
+          <div class="action-content">
+            <div class="action-title">已刪除的頻道</div>
+            <div class="action-subtitle">查看並恢復已刪除的頻道</div>
+          </div>
+          <div class="action-arrow">
+            <i class="pi pi-chevron-right text-gray-400"></i>
+          </div>
+        </div>
+
         <!-- 分隔線 -->
         <Divider />
 
@@ -104,7 +118,7 @@ import { computed } from "vue";
 import { useUserStore } from "~/stores/user";
 
 // 定義事件
-const emit = defineEmits(["back", "edit-profile", "logout"]);
+const emit = defineEmits(["back", "edit-profile", "logout", "view-deleted-channels"]);
 
 const userStore = useUserStore();
 
