@@ -20,9 +20,7 @@
       @contextmenu.prevent="(event) => handleContextMenu(event)"
     >
       <!-- 消息內容 -->
-      <div class="message-content">
-        {{ message.content }}
-      </div>
+      <div class="message-content" v-html="formattedContent"></div>
     </div>
 
     <!-- 右鍵選單 -->
@@ -126,6 +124,21 @@ const formattedTime = computed(() => {
 const detailedTime = computed(() => {
   updateTrigger.value;
   return getDetailedTime(props.message.created_on);
+});
+
+// 格式化訊息內容，處理換行和 HTML 轉義
+const formattedContent = computed(() => {
+  if (!props.message.content) return '';
+  
+  // HTML 轉義防止 XSS
+  const escapeHtml = (text) => {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  };
+  
+  // 轉義 HTML 並將換行符轉換為 <br>
+  return escapeHtml(props.message.content).replace(/\n/g, '<br>');
 });
 
 // 處理右鍵菜單
@@ -254,6 +267,17 @@ onUnmounted(() => {
   color: var(--text-color);
   border: 1px solid;
   border-bottom-left-radius: 0.375rem;
+}
+
+/* 訊息內容樣式 */
+.message-content {
+  word-wrap: break-word;
+  word-break: break-word;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  line-height: 1.5;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .message-time {
