@@ -3,6 +3,7 @@
 ## 🎯 PrimeVue UI 框架遷移
 
 ### 已完成 ✅
+
 - [x] 檢查當前 PrimeVue 配置狀態
 - [x] 搜尋專案中剩餘的 Nuxt UI 組件
 - [x] 轉換 login.vue 中的 Nuxt UI 組件
@@ -12,17 +13,16 @@
 - [x] 修復 toast 服務和 hydration 問題
 - [x] 修復註冊 API 自動創建 UserProfile
 - [x] 創建 ab_user 表的管理介面視圖
-
-### 進行中 🔄
-- [ ] 逐步將其他檔案中的 Nuxt UI 組件轉換為 PrimeVue
-  - [ ] 檢查 CreateChannelSidebar.vue
-  - [ ] 檢查 ChannelSidebar.vue  
-  - [ ] 檢查 ChannelSettingsModal.vue
-  - [ ] 檢查其他可能的組件檔案
+- [x] 逐步將其他檔案中的 Nuxt UI 組件轉換為 PrimeVue
+- [x] 檢查 CreateChannelSidebar.vue
+- [x] 檢查 ChannelSidebar.vue
+- [x] 檢查 ChannelSettingsModal.vue
+- [x] 檢查其他可能的組件檔案
 
 ### 待辦事項 📋
 
 #### 前端功能完善
+
 - [ ] 測試轉換後的功能
   - [ ] 註冊功能完整測試
   - [ ] 登入功能完整測試
@@ -35,6 +35,7 @@
 - [ ] 移除舊的 Nuxt UI 依賴項
 
 #### 聊天室核心功能
+
 - [ ] 修復訊息換行問題 (message can't newline)
 - [ ] WebSocket 連接測試
 - [ ] 即時訊息傳送功能
@@ -43,12 +44,14 @@
 - [ ] 檔案上傳功能
 
 #### 後端功能完善
+
 - [ ] 確認 UserProfile 自動創建邏輯
 - [ ] 測試註冊後的資料完整性
 - [ ] 優化 API 錯誤處理
 - [ ] 添加 API 文檔
 
 #### 系統管理功能
+
 - [ ] 管理員介面完善
   - [x] 註冊用戶查看介面
   - [ ] 聊天訊息管理介面
@@ -57,6 +60,7 @@
 - [ ] 效能優化
 
 #### 版本更新與部署
+
 - [ ] 更新版本號 (update version)
 - [ ] 輸入驗證強化
 - [ ] CSRF 保護
@@ -80,7 +84,7 @@
 - [x] ~~Hydration mismatch 警告~~ (已修復)
 - [x] ~~Toast 服務未正確初始化~~ (已修復)
 - [x] ~~註冊後 UserProfile 未自動創建~~ (已修復)
-- [ ] 訊息換行問題 (message can't newline)
+- [ ] 訊息換行問題 (傳送字體時有換行符不會自動換行且字體多時也不會換行會跑出 div 外)
 
 ---
 

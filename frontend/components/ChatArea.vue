@@ -207,10 +207,9 @@ const handleScroll = async () => {
   const container = messagesContainer.value;
   if (!container) return;
 
-  // 檢查是否接近底部 (100px 閾值內視為底部)
-  const isNearBottom =
-    container.scrollTop + container.clientHeight >=
-    container.scrollHeight - 100;
+  // 檢查是否接近底部 - 與自動滾動邏輯保持一致
+  const scrollFromBottom = container.scrollHeight - (container.scrollTop + container.clientHeight);
+  const isNearBottom = scrollFromBottom <= 100;
   showScrollToBottom.value = !isNearBottom;
 
   // 歷史訊息載入邏輯
@@ -286,11 +285,49 @@ watch(
 watch(
   activeMessages,
   (newMessages, oldMessages) => {
+    console.log('activeMessages changed:', {
+      newCount: newMessages?.length,
+      oldCount: oldMessages?.length,
+      hasIncrease: newMessages && oldMessages && newMessages.length > oldMessages.length
+    });
+
     // 只有當訊息數量增加時才滾動到底部（新訊息）
     if (newMessages && oldMessages && newMessages.length > oldMessages.length) {
-      scrollToBottom(true); // 新訊息使用平滑滾動
+      // 取得最新訊息
+      const latestMessage = newMessages[newMessages.length - 1];
+      const isOwnMessage = latestMessage?.sender_id === userStore.userProfile?.user_id;
+      
+      console.log('New message detected:', {
+        latestMessage: latestMessage,
+        userProfileId: userStore.userProfile?.user_id,
+        isOwnMessage: isOwnMessage
+      });
+      
+      // 如果是自己的訊息，總是滾動到底部
+      if (isOwnMessage) {
+        console.log('Own message - scrolling to bottom');
+        scrollToBottom(true);
+      } else {
+        // 其他人的訊息，只有在接近底部時才自動滾動
+        const container = messagesContainer.value;
+        if (container) {
+          const scrollFromBottom = container.scrollHeight - (container.scrollTop + container.clientHeight);
+          const isNearBottom = scrollFromBottom <= 100;
+          
+          console.log('Other message - scroll check:', {
+            scrollFromBottom,
+            isNearBottom,
+            willScroll: isNearBottom
+          });
+          
+          if (isNearBottom) {
+            scrollToBottom(true);
+          }
+        }
+      }
     } else if (newMessages && !oldMessages) {
       // 初始載入時立即跳到底部
+      console.log('Initial load - scrolling to bottom');
       scrollToBottom(false);
     }
   },

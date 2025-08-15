@@ -8,7 +8,7 @@
           ref="textareaRef"
           v-model="messageText"
           class="chat-input"
-          placeholder="輸入訊息... (Shift + Enter 換行)"
+          placeholder="輸入訊息..."
           @keydown="handleKeydown"
           @input="handleInput"
           @focus="handleFocus"
@@ -29,11 +29,7 @@
           class="pi pi-spin pi-spinner"
           style="font-size: 1rem"
         ></i>
-        <i
-          v-else
-          class="pi pi-send"
-          style="font-size: 1rem"
-        ></i>
+        <i v-else class="pi pi-send" style="font-size: 1rem"></i>
       </button>
     </div>
   </div>
@@ -176,10 +172,10 @@ onMounted(() => {
 }
 
 .chat-input {
-  width: 100% !important;
+  width: 100%;
   padding: 0.75rem 1rem;
-  max-width: none !important;
-  border: 1px solid var(--surface-border);
+  max-width: none;
+  border: 1px solid gray;
   border-radius: 1rem;
   min-height: 48px;
   max-height: 120px;
@@ -196,7 +192,7 @@ onMounted(() => {
 }
 
 .chat-input:focus {
-  border-color: var(--primary-color);
+  border-color: var(--primary-color) !important;
   box-shadow: 0 0 0 1px var(--primary-color);
 }
 
@@ -208,7 +204,7 @@ onMounted(() => {
 .send-button {
   width: 2.75rem;
   padding: 0;
-  margin: 0 0 0.25rem 0;
+  margin: 0 0 0.5rem 0;
   height: 2.75rem;
   border-radius: 0.75rem;
   background: var(--primary-color);
@@ -248,7 +244,7 @@ onMounted(() => {
     background: var(--surface-800);
     border-color: var(--surface-600);
   }
-  
+
   .chat-input:focus {
     border-color: var(--primary-400);
     box-shadow: 0 0 0 1px var(--primary-400);

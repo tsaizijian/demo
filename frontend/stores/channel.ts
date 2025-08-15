@@ -531,10 +531,32 @@ export const useChannelStore = defineStore("channel", {
 
     // 添加訊息到頻道
     addMessageToChannel(channelId: number, message: ChannelMessage) {
+      console.log('addMessageToChannel called:', {
+        channelId,
+        currentChannelId: this.currentChannelId,
+        messageId: message.id,
+        beforeLength: this.channelMessages[channelId]?.length || 0
+      });
+
       if (!this.channelMessages[channelId]) {
         this.channelMessages[channelId] = [];
       }
-      this.channelMessages[channelId].push(message);
+
+      // 檢查是否已存在相同 ID 的訊息
+      const existingMessage = this.channelMessages[channelId].find(m => m.id === message.id);
+      if (existingMessage) {
+        console.log('Message already exists, skipping:', message.id);
+        return;
+      }
+
+      // 使用 Vue 3 響應性更新
+      this.channelMessages[channelId] = [...this.channelMessages[channelId], message];
+      
+      console.log('Message added:', {
+        channelId,
+        messageId: message.id,
+        afterLength: this.channelMessages[channelId].length
+      });
 
       // 更新頻道的最新訊息資訊
       const channel = this.channels.find((c) => c.id === channelId);

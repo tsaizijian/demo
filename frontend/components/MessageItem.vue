@@ -6,6 +6,11 @@
       other: !isOwnMessage,
     }"
   >
+    <!-- 發送者名稱（僅對方消息顯示） -->
+    <div v-if="!isOwnMessage && showSenderName" class="sender-name">
+      {{ message.sender_name }}
+    </div>
+
     <div
       class="message-bubble"
       :class="{
@@ -14,11 +19,6 @@
       }"
       @contextmenu.prevent="(event) => showContextMenu(event, message.id)"
     >
-      <!-- 發送者名稱（僅對方消息顯示） -->
-      <div v-if="!isOwnMessage && showSenderName" class="sender-name">
-        {{ message.sender_name }}
-      </div>
-
       <!-- 消息內容 -->
       <div class="message-content">
         {{ message.content }}
@@ -228,11 +228,11 @@ onUnmounted(() => {
 .message-bubble.own {
   color: var(--primary-color-text);
   border-bottom-right-radius: 0.375rem;
-  background-color: #42b66d;
+  background-color: white;
 }
 
 .message-bubble.other {
-  background: var(--surface-0);
+  background: white;
   color: var(--text-color);
   border: 1px solid;
   border-bottom-left-radius: 0.375rem;
@@ -322,7 +322,8 @@ onUnmounted(() => {
 .sender-name {
   font-size: 0.75rem;
   font-weight: 600;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.375rem;
+  margin-left: 0.5rem;
   color: var(--text-color-secondary);
   opacity: 0.8;
 }
