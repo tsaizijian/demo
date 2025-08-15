@@ -239,6 +239,95 @@ export const useChannelStore = defineStore("channel", {
       }
     },
 
+    // 載入歷史訊息（游標式分頁）
+    async loadHistoryMessages(channelId: number, beforeTimestamp?: string, limit: number = 20) {
+      try {
+        const config = useRuntimeConfig();
+        const userStore = useUserStore();
+
+        // 取得最舊訊息的 ID 作為 before_id 參數（游標式分頁）
+        const currentMessages = this.channelMessages[channelId] || [];
+        const beforeId = currentMessages.length > 0 && currentMessages[0] ? currentMessages[0].id : undefined;
+
+        console.log('Loading history messages:', {
+          channelId,
+          beforeId,
+          currentMessagesCount: currentMessages.length
+        });
+
+        // 構建查詢參數（游標式，不使用 page）
+        const params = new URLSearchParams({
+          channel_id: channelId.toString(),
+          per_page: limit.toString(),
+        });
+
+        if (beforeId) {
+          params.append('before_id', beforeId.toString());
+        }
+
+        // 呼叫歷史訊息 API
+        const response = await $fetch<{
+          result: ChannelMessage[];
+          pagination?: {
+            has_next: boolean;
+            next_before_id?: number;
+          };
+        }>(
+          `${config.public.apiBase}/api/v1/chatmessageapi/history?${params.toString()}`,
+          {
+            credentials: "include",
+            headers: {
+              Authorization: `Bearer ${userStore.accessToken}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        if (response && response.result) {
+          console.log('History API response:', {
+            messageCount: response.result.length,
+            hasNext: response.pagination?.has_next,
+            nextBeforeId: response.pagination?.next_before_id
+          });
+
+          // 將歷史訊息插入到現有訊息列表的開頭
+          if (!this.channelMessages[channelId]) {
+            this.channelMessages[channelId] = [];
+          }
+          
+          // 避免重複訊息
+          const existingIds = new Set(this.channelMessages[channelId].map(m => m.id));
+          const newMessages = response.result.filter(m => !existingIds.has(m.id));
+          
+          console.log('Adding history messages:', {
+            newMessagesCount: newMessages.length,
+            duplicatesFiltered: response.result.length - newMessages.length
+          });
+          
+          // 將新的歷史訊息加到列表開頭（使用 Vue 3 響應性更新）
+          this.channelMessages[channelId] = [...newMessages, ...this.channelMessages[channelId]];
+          
+          return { 
+            success: true, 
+            messages: response.result,
+            hasNext: response.pagination?.has_next ?? false
+          };
+        }
+
+        return { success: false, error: "No history messages found", messages: [], hasNext: false };
+      } catch (error: any) {
+        console.error("載入歷史訊息失敗:", error);
+        
+        // 如果 API 不存在，返回空結果而不是錯誤
+        if (error.status === 404) {
+          console.warn("歷史訊息 API 尚未實作，跳過載入");
+          return { success: false, error: "History API not implemented", messages: [], hasNext: false };
+        }
+        
+        return { success: false, error: error.message, messages: [], hasNext: false };
+      }
+    },
+
     // 獲取頻道成員
     async fetchChannelMembers(channelId: number) {
       try {
@@ -468,10 +557,32 @@ export const useChannelStore = defineStore("channel", {
 
     // 添加訊息到頻道
     addMessageToChannel(channelId: number, message: ChannelMessage) {
+      console.log('addMessageToChannel called:', {
+        channelId,
+        currentChannelId: this.currentChannelId,
+        messageId: message.id,
+        beforeLength: this.channelMessages[channelId]?.length || 0
+      });
+
       if (!this.channelMessages[channelId]) {
         this.channelMessages[channelId] = [];
       }
-      this.channelMessages[channelId].push(message);
+
+      // 檢查是否已存在相同 ID 的訊息
+      const existingMessage = this.channelMessages[channelId].find(m => m.id === message.id);
+      if (existingMessage) {
+        console.log('Message already exists, skipping:', message.id);
+        return;
+      }
+
+      // 使用 Vue 3 響應性更新
+      this.channelMessages[channelId] = [...this.channelMessages[channelId], message];
+      
+      console.log('Message added:', {
+        channelId,
+        messageId: message.id,
+        afterLength: this.channelMessages[channelId].length
+      });
 
       // 更新頻道的最新訊息資訊
       const channel = this.channels.find((c) => c.id === channelId);
@@ -521,6 +632,145 @@ export const useChannelStore = defineStore("channel", {
     // 切換頻道創建器顯示狀態
     toggleChannelCreator() {
       this.showChannelCreator = !this.showChannelCreator;
+    },
+
+    // 刪除頻道
+    async deleteChannel(channelId: number) {
+      this.loading = true;
+      this.error = null;
+
+      try {
+        const config = useRuntimeConfig();
+        const userStore = useUserStore();
+
+        const response = await $fetch(
+          `${config.public.apiBase}/api/v1/chatchannelapi/delete-channel/${channelId}`,
+          {
+            method: "POST",
+            credentials: "include",
+            headers: {
+              Authorization: `Bearer ${userStore.accessToken}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        if (response) {
+          // 重新獲取頻道列表
+          await this.fetchChannels();
+
+          // 如果刪除的是當前頻道，切換到第一個可用頻道
+          if (this.currentChannelId === channelId) {
+            const firstAvailableChannel = this.channels[0];
+            if (firstAvailableChannel) {
+              await this.switchChannel(firstAvailableChannel.id);
+            }
+          }
+
+          return { success: true, data: response };
+        }
+
+        return { success: false, error: "Failed to delete channel" };
+      } catch (error: any) {
+        console.error("刪除頻道失敗:", error);
+        this.error = error.data?.message || error.message || "刪除頻道失敗";
+        return { success: false, error: this.error };
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    // 恢復頻道
+    async restoreChannel(channelId: number) {
+      this.loading = true;
+      this.error = null;
+
+      try {
+        const config = useRuntimeConfig();
+        const userStore = useUserStore();
+
+        const response = await $fetch(
+          `${config.public.apiBase}/api/v1/chatchannelapi/restore-channel/${channelId}`,
+          {
+            method: "POST",
+            credentials: "include",
+            headers: {
+              Authorization: `Bearer ${userStore.accessToken}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        if (response) {
+          // 重新獲取頻道列表
+          await this.fetchChannels();
+
+          return { success: true, data: response };
+        }
+
+        return { success: false, error: "Failed to restore channel" };
+      } catch (error: any) {
+        console.error("恢復頻道失敗:", error);
+        this.error = error.data?.message || error.message || "恢復頻道失敗";
+        return { success: false, error: this.error };
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    // 獲取已刪除的頻道列表
+    async fetchDeletedChannels() {
+      this.loading = true;
+      this.error = null;
+
+      try {
+        const config = useRuntimeConfig();
+        const userStore = useUserStore();
+
+        const response = await $fetch<ApiResponse<Channel[]>>(
+          `${config.public.apiBase}/api/v1/chatchannelapi/deleted-channels`,
+          {
+            credentials: "include",
+            headers: {
+              Authorization: `Bearer ${userStore.accessToken}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        if (response && response.result) {
+          return { success: true, data: response.result };
+        }
+
+        return { success: false, error: "No deleted channels found" };
+      } catch (error: any) {
+        console.error("獲取已刪除頻道失敗:", error);
+        this.error = error.data?.message || error.message || "獲取已刪除頻道失敗";
+        return { success: false, error: this.error };
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    // 檢查是否可以刪除頻道
+    canDeleteChannel(channel: Channel): boolean {
+      const userStore = useUserStore();
+      console.log('Channel store 檢查刪除權限:', {
+        hasUserProfile: !!userStore.userProfile,
+        userProfileUserId: userStore.userProfile?.user_id,
+        channelId: channel.id,
+        creatorId: channel.creator_id,
+        isDefaultChannel: channel.id === 1,
+        match: channel.creator_id === userStore.userProfile?.user_id
+      });
+      
+      if (!userStore.userProfile) return false;
+
+      // 防止刪除預設頻道 (ID = 1)
+      if (channel.id === 1) return false;
+
+      // 檢查是否為創建者 (目前只允許創建者刪除)
+      return channel.creator_id === userStore.userProfile.user_id;
     },
 
     // 重置狀態

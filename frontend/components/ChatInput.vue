@@ -8,7 +8,7 @@
           ref="textareaRef"
           v-model="messageText"
           class="chat-input"
-          placeholder="輸入訊息... (Shift + Enter 換行)"
+          placeholder="輸入訊息..."
           @keydown="handleKeydown"
           @input="handleInput"
           @focus="handleFocus"
@@ -24,21 +24,12 @@
         :disabled="!canSend || sending"
         @click="handleSend"
       >
-        <svg
+        <i
           v-if="sending"
-          class="w-4 h-4 animate-spin"
-          fill="currentColor"
-          viewBox="0 0 20 20"
-        >
-          <path
-            d="M4 2a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2H4z"
-          />
-        </svg>
-        <svg v-else class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-          <path
-            d="M2.94 6.412A2 2 0 015.368 4.32L16.06 9.652a1 1 0 010 1.696L5.368 16.68a2 2 0 01-2.428-2.092l.4-3.734a1 1 0 01.985-.878h4.15a.5.5 0 000-1h-4.15a1 1 0 01-.985-.878l-.4-3.734z"
-          />
-        </svg>
+          class="pi pi-spin pi-spinner"
+          style="font-size: 1rem"
+        ></i>
+        <i v-else class="pi pi-send" style="font-size: 1rem"></i>
       </button>
     </div>
   </div>
@@ -168,10 +159,11 @@ onMounted(() => {
 <style scoped>
 .chat-input-area {
   padding: 1rem;
-  background-color: white;
+  background: var(--surface-0);
   width: 100%;
   max-width: none !important;
   box-sizing: border-box;
+  border-top: 1px solid var(--surface-border);
 }
 
 .input-container {
@@ -180,50 +172,82 @@ onMounted(() => {
 }
 
 .chat-input {
-  width: 100% !important;
-  padding: 0.5rem 1rem;
-  max-width: none !important;
-  border: 1px solid #d1d5db;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  max-width: none;
+  border: 1px solid gray;
   border-radius: 1rem;
-  min-height: 56px;
-  max-height: 200px;
+  min-height: 48px;
+  max-height: 120px;
   resize: none;
   outline: none;
   font-family: inherit;
-  font-size: 1.5rem;
+  font-size: 0.875rem;
   line-height: 1.5;
   overflow-y: auto;
   box-sizing: border-box;
+  background: var(--surface-0);
+  color: var(--text-color);
+  transition: border-color 0.2s ease;
 }
 
 .chat-input:focus {
-  box-shadow: 0 0 0 2px #3b82f6;
+  border-color: var(--primary-color) !important;
+  box-shadow: 0 0 0 1px var(--primary-color);
+}
+
+.chat-input::placeholder {
+  color: var(--text-color-secondary);
+  opacity: 0.7;
 }
 
 .send-button {
-  width: 3rem;
+  width: 2.75rem;
   padding: 0;
-  margin: 0 0 0.25rem 0;
-  height: 3rem;
+  margin: 0 0 0.5rem 0;
+  height: 2.75rem;
   border-radius: 0.75rem;
-  background: #0088cc;
-  color: white;
+  background: aliceblue;
+  color: var(--primary-color-text);
   border: none;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
   align-self: flex-end;
+  box-shadow: var(--shadow-1);
 }
 
 .send-button:hover:not(:disabled) {
-  background: #40a7e3;
+  background: var(--primary-600);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-2);
+}
+
+.send-button:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: var(--shadow-1);
 }
 
 .send-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* 暗色主題支援 */
+@media (prefers-color-scheme: dark) {
+  .chat-input {
+    background: var(--surface-800);
+    border-color: var(--surface-600);
+  }
+
+  .chat-input:focus {
+    border-color: var(--primary-400);
+    box-shadow: 0 0 0 1px var(--primary-400);
+  }
 }
 </style>

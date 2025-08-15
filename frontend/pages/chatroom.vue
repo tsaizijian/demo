@@ -8,6 +8,7 @@ import ChatArea from "~/components/ChatArea.vue";
 import UserActionBar from "~/components/UserActionBar.vue";
 import EditProfile from "~/components/EditProfile.vue";
 import CreateChannelSidebar from "~/components/CreateChannelSidebar.vue";
+import DeletedChannelsView from "~/components/DeletedChannelsView.vue";
 
 // 設定頁面元資訊
 definePageMeta({
@@ -21,7 +22,7 @@ const router = useRouter();
 const { connect, disconnect } = useSocket();
 
 // 側邊欄狀態管理
-const sidebarView = ref("chat"); // 'chat', 'settings', 'profile'
+const sidebarView = ref("chat"); // 'chat', 'settings', 'profile', 'deleted-channels'
 
 // Socket connection
 const { isConnected, isSocketConnected } = useSocket();
@@ -58,6 +59,10 @@ const backToChat = () => {
   sidebarView.value = "chat";
 };
 
+const showDeletedChannels = () => {
+  sidebarView.value = "deleted-channels";
+};
+
 // 移除了右側邊欄處理，現在直接使用 channelStore.showChannelCreator
 
 // 初始化
@@ -66,7 +71,7 @@ onMounted(async () => {
   userStore.initAuth();
 
   if (!userStore.isAuthenticated) {
-    await router.push("/login");
+    await navigateTo("/login");
     return;
   }
 
@@ -86,10 +91,10 @@ onMounted(async () => {
     userStore.accessToken ? "已存在" : "不存在"
   );
   const socket = connect();
-  
+
   // 監聽瀏覽器關閉事件
-  if (process.client) {
-    window.addEventListener('beforeunload', handleBeforeUnload);
+  if (import.meta.client) {
+    window.addEventListener("beforeunload", handleBeforeUnload);
   }
 
   if (socket) {
@@ -114,14 +119,13 @@ const handleBeforeUnload = () => {
   disconnect();
 };
 
-
 // 清理資源
 onUnmounted(() => {
   disconnect();
-  
+
   // 移除事件監聽器
-  if (process.client) {
-    window.removeEventListener('beforeunload', handleBeforeUnload);
+  if (import.meta.client) {
+    window.removeEventListener("beforeunload", handleBeforeUnload);
   }
 });
 </script>
@@ -156,6 +160,8 @@ onUnmounted(() => {
         :connectionStatus="connectionStatus"
         :connectionStatusClass="connectionStatusClass"
         @show-user-settings="showUserSettings"
+        @logout="handleLogout"
+        @create-channel="() => channelStore.toggleChannelCreator()"
       />
 
       <UserActionBar
@@ -163,12 +169,18 @@ onUnmounted(() => {
         @back="backToChat"
         @edit-profile="showEditProfile"
         @logout="handleLogout"
+        @view-deleted-channels="showDeletedChannels"
       />
 
       <EditProfile
         v-if="sidebarView === 'profile'"
         @back="() => (sidebarView = 'settings')"
         @save="() => (sidebarView = 'settings')"
+      />
+
+      <DeletedChannelsView
+        v-if="sidebarView === 'deleted-channels'"
+        @close="() => (sidebarView = 'settings')"
       />
     </div>
 
@@ -177,9 +189,7 @@ onUnmounted(() => {
 
     <!-- 右側邊欄 -->
     <div v-if="channelStore.showChannelCreator" class="sidebar-container">
-      <CreateChannelSidebar
-        @back="channelStore.toggleChannelCreator"
-      />
+      <CreateChannelSidebar @back="channelStore.toggleChannelCreator" />
     </div>
   </div>
 </template>

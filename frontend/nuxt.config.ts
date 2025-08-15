@@ -1,29 +1,80 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
+import Aura from "@primeuix/themes/aura";
+import PrimeUI from "tailwindcss-primeui";
+import { definePreset } from "@primeuix/themes";
+import { defineNuxtConfig } from "nuxt/config";
+
+const MyPreset = definePreset(Aura, {
+  components: {
+    card: {
+      colorScheme: {
+        light: {
+          root: {
+            background: "{surface.50}",
+          },
+        },
+        dark: {
+          root: {
+            background: "{surface.800}",
+          },
+        },
+      },
+    },
+    menubar: {
+      colorScheme: {
+        light: {
+          root: {
+            background: "{lime.50}",
+          },
+        },
+        dark: {
+          root: {
+            background: "{gray.800}",
+          },
+        },
+      },
+    },
+  },
+});
+
 export default defineNuxtConfig({
-  compatibilityDate: '2025-07-15',
+  compatibilityDate: "2025-07-15",
   devtools: { enabled: true },
-  modules: ['@nuxt/image', '@nuxt/eslint', '@nuxt/ui', '@pinia/nuxt'],
-  
-  // CSS 配置
-  css: [
-    '~/assets/css/global.css',
-    '~/assets/css/theme.css'
+
+  modules: [
+    "@nuxt/image",
+    "@nuxt/eslint",
+    "@pinia/nuxt",
+    "@primevue/nuxt-module",
+    "@nuxtjs/tailwindcss",
   ],
 
-  // Tailwind CSS 配置
-  tailwindcss: {
-    configPath: '~/tailwind.config.js'
+  css: [
+    "primeicons/primeicons.css",
+    "~/assets/css/tailwind.css",
+    "~/assets/css/global.css",
+  ],
+
+  // 🎨 PrimeVue 設定 + 客製主題
+  primevue: {
+    options: {
+      theme: {
+        preset: MyPreset,
+        options: {
+          prefix: "p",
+          darkModeSelector: ".dark",
+        },
+      },
+      ripple: true,
+      unstyled: false,
+    },
+    autoImport: true,
   },
 
-  // UI 配置
-  ui: {
-    icons: ['heroicons']
-  },
-  
-  // 開發環境設定
+  // 🌐 環境變數
   runtimeConfig: {
     public: {
-      apiBase: process.env.API_BASE || 'http://localhost:8080'
-    }
-  }
-})
+      apiBase: process.env.API_BASE || "http://localhost:8080",
+    },
+  },
+});

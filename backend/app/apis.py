@@ -1,7 +1,8 @@
 from flask_appbuilder.api import ModelRestApi
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from flask import request, jsonify, g
-from flask_appbuilder.security.decorators import has_access
+# from flask_appbuilder.security.decorators import has_access
+from .auth import jwt_required
 from flask_appbuilder import expose
 import datetime
 from datetime import timezone
@@ -36,6 +37,9 @@ class ChatMessageApi(ModelRestApi):
 
     # 單頁最大筆數限制
     max_page_size = 100
+    
+    # 🔒 安全性：禁用危險的 REST 端點
+    base_permissions = []
 
     def pre_add(self, obj):
         """在添加前自動設定sender_id"""
@@ -43,11 +47,44 @@ class ChatMessageApi(ModelRestApi):
         obj.channel_id = getattr(obj, 'channel_id', 1)  # 預設頻道
 
     def pre_update(self, obj):
-        """防止修改sender_id"""
-        pass
+        """🔒 安全檢查：用戶只能修改自己的訊息"""
+        if not g.user:
+            raise Exception("未認證")
+        if obj.sender_id != g.user.id and not self._is_admin():
+            raise Exception("無權限修改其他用戶的訊息")
+    
+    def pre_delete(self, obj):
+        """🔒 安全檢查：用戶只能刪除自己的訊息"""
+        if not g.user:
+            raise Exception("未認證")
+        if obj.sender_id != g.user.id and not self._is_admin():
+            raise Exception("無權限刪除其他用戶的訊息")
+    
+    def pre_get(self, obj):
+        """🔒 安全檢查：檢查用戶是否有權限查看該訊息的頻道"""
+        if not g.user:
+            raise Exception("未認證")
+        # 檢查用戶是否有權限存取該頻道的訊息
+        if not self._can_access_channel(obj.channel_id):
+            raise Exception("無權限查看此頻道的訊息")
+    
+    def _can_access_channel(self, channel_id):
+        """檢查用戶是否有權限存取指定頻道"""
+        from .models import ChatChannel
+        channel = self.datamodel.session.query(ChatChannel).filter(ChatChannel.id == channel_id).first()
+        if not channel:
+            return False
+        # 公開頻道所有人都可以存取，私人頻道需要是創建者
+        if not channel.is_private:
+            return True
+        return channel.creator_id == g.user.id or self._is_admin()
+    
+    def _is_admin(self):
+        """檢查當前用戶是否為管理員"""
+        return hasattr(g.user, 'roles') and any(role.name == 'Admin' for role in g.user.roles)
 
     @expose('/recent/<int:limit>')
-    @has_access
+    @jwt_required
     def recent_messages(self, limit=50):
         """
         取得最近的訊息
@@ -77,7 +114,7 @@ class ChatMessageApi(ModelRestApi):
         })
 
     @expose('/send', methods=['POST'])
-    @has_access
+    @jwt_required
     def send_message(self):
         """
         發送新訊息
@@ -123,48 +160,51 @@ class ChatMessageApi(ModelRestApi):
             return jsonify({'error': f'發送失敗: {str(e)}'}), 500
 
     @expose('/history')
-    @has_access
+    @jwt_required
     def message_history(self):
         """
-        取得歷史訊息 (分頁)
-        GET /api/v1/chatmessageapi/history?page=1&per_page=20&before_id=100
+        取得歷史訊息（游標式分頁）
+        GET /api/v1/chatmessageapi/history?channel_id=1&per_page=20&before_id=100
+        - 不帶 before_id：抓最新一頁
+        - 帶 before_id：抓該 id 之前的舊訊息
         """
-        page = request.args.get('page', 1, type=int)
         per_page = min(request.args.get('per_page', 20, type=int), 100)
-        before_id = request.args.get('before_id', type=int)  # 取得指定 ID 之前的訊息
+        before_id = request.args.get('before_id', type=int)
         channel_id = request.args.get('channel_id', 1, type=int)
 
-        query = (
+        q = (
             self.datamodel.session.query(ChatMessage)
-            .filter(ChatMessage.is_deleted == False)
+            .filter(ChatMessage.is_deleted.is_(False))
             .filter(ChatMessage.channel_id == channel_id)
         )
 
-        # 如果指定 before_id，取得該 ID 之前的訊息
         if before_id:
-            query = query.filter(ChatMessage.id < before_id)
+            q = q.filter(ChatMessage.id < before_id)
 
-        # 分頁查詢
-        pagination = query.order_by(ChatMessage.created_on.desc()).paginate(
-            page=page, per_page=per_page, error_out=False
+        rows = (
+            q.order_by(ChatMessage.id.desc())
+             .limit(per_page + 1)
+             .all()
         )
 
-        messages = list(reversed(pagination.items))  # 反轉讓最舊的在前面
+        has_next = len(rows) > per_page
+        if has_next:
+            rows = rows[:per_page]
+
+        rows = list(reversed(rows))
+        next_before_id = rows[0].id if has_next and rows else None
 
         return jsonify({
-            'result': [msg.to_dict() for msg in messages],
+            'result': [r.to_dict() for r in rows],
             'pagination': {
-                'page': page,
                 'per_page': per_page,
-                'total': pagination.total,
-                'pages': pagination.pages,
-                'has_next': pagination.has_next,
-                'has_prev': pagination.has_prev
+                'has_next': has_next,
+                'next_before_id': next_before_id
             }
         })
 
     @expose('/delete/<int:message_id>', methods=['POST'])
-    @has_access
+    @jwt_required
     def soft_delete_message(self, message_id):
         """
         軟刪除訊息 (只有發送者或管理員可刪除)
@@ -202,14 +242,45 @@ class UserProfileApi(ModelRestApi):
 
     # 預設排序
     base_order = ('join_date', 'desc')
+    
+    # 🔒 安全性：禁用不安全的端點
+    # 禁用列出所有用戶的端點
+    list_template = None
+    # 禁用 REST API 的危險端點
+    base_permissions = []
 
     def pre_add(self, obj):
         """在添加前自動設定user_id"""
         obj.user_id = g.user.id
         obj.join_date = datetime.datetime.now(timezone.utc)
+    
+    def pre_get(self, obj):
+        """🔒 安全檢查：用戶只能查看自己的 profile"""
+        if not g.user:
+            raise Exception("未認證")
+        if obj.user_id != g.user.id and not self._is_admin():
+            raise Exception("無權限查看其他用戶的個人資料")
+    
+    def pre_update(self, obj):
+        """🔒 安全檢查：用戶只能修改自己的 profile"""  
+        if not g.user:
+            raise Exception("未認證")
+        if obj.user_id != g.user.id and not self._is_admin():
+            raise Exception("無權限修改其他用戶的個人資料")
+    
+    def pre_delete(self, obj):
+        """🔒 安全檢查：用戶只能刪除自己的 profile"""
+        if not g.user:
+            raise Exception("未認證")
+        if obj.user_id != g.user.id and not self._is_admin():
+            raise Exception("無權限刪除其他用戶的個人資料")
+    
+    def _is_admin(self):
+        """檢查當前用戶是否為管理員"""
+        return hasattr(g.user, 'roles') and any(role.name == 'Admin' for role in g.user.roles)
 
     @expose('/me')
-    @has_access
+    @jwt_required
     def get_my_profile(self):
         """
         取得當前使用者的個人資料
@@ -235,7 +306,7 @@ class UserProfileApi(ModelRestApi):
         })
 
     @expose('/update-profile', methods=['POST'])
-    @has_access
+    @jwt_required
     def update_my_profile(self):
         """
         更新當前使用者的個人資料
@@ -271,7 +342,7 @@ class UserProfileApi(ModelRestApi):
             return jsonify({'error': f'更新失敗: {str(e)}'}), 500
 
     @expose('/online-users')
-    @has_access
+    @jwt_required
     def get_online_users(self):
         """
         取得線上使用者列表
@@ -290,7 +361,7 @@ class UserProfileApi(ModelRestApi):
         })
 
     @expose('/set-online-status', methods=['POST'])
-    @has_access
+    @jwt_required
     def set_online_status(self):
         """
         設定線上狀態
@@ -331,12 +402,9 @@ class ChatChannelApi(ModelRestApi):
 
     allow_browser_login = True
     
-    # 設定基本權限，允許已認證使用者存取
+    # 🔒 安全性：禁用危險的 REST 端點，只保留自定義端點
     base_permissions = [
-        'can_get',
-        'can_put', 
-        'can_post',
-        'can_delete',
+
         'can_get_public_channels',
         'can_create_channel',
         'can_get_my_channels'
@@ -354,9 +422,35 @@ class ChatChannelApi(ModelRestApi):
     def pre_add(self, obj):
         """在添加前自動設定creator_id"""
         obj.creator_id = g.user.id
+    
+    def pre_get(self, obj):
+        """🔒 安全檢查：用戶只能查看有權限的頻道"""
+        if not g.user:
+            raise Exception("未認證")
+        # 公開頻道所有人都可以查看，私人頻道只有創建者可以查看
+        if obj.is_private and obj.creator_id != g.user.id and not self._is_admin():
+            raise Exception("無權限查看此私人頻道")
+    
+    def pre_update(self, obj):
+        """🔒 安全檢查：用戶只能修改自己創建的頻道"""
+        if not g.user:
+            raise Exception("未認證")
+        if obj.creator_id != g.user.id and not self._is_admin():
+            raise Exception("無權限修改此頻道")
+    
+    def pre_delete(self, obj):
+        """🔒 安全檢查：用戶只能刪除自己創建的頻道"""
+        if not g.user:
+            raise Exception("未認證")
+        if obj.creator_id != g.user.id and not self._is_admin():
+            raise Exception("無權限刪除此頻道")
+    
+    def _is_admin(self):
+        """檢查當前用戶是否為管理員"""
+        return hasattr(g.user, 'roles') and any(role.name == 'Admin' for role in g.user.roles)
 
     @expose('/public-channels')
-    @has_access
+    @jwt_required
     def get_public_channels(self):
         """
         取得公開頻道列表 (包含最新訊息)
@@ -406,7 +500,7 @@ class ChatChannelApi(ModelRestApi):
         })
 
     @expose('/create-channel', methods=['POST'])
-    @has_access
+    @jwt_required
     def create_channel(self):
         """
         建立新頻道
@@ -466,7 +560,7 @@ class ChatChannelApi(ModelRestApi):
             return jsonify({'error': f'建立失敗: {str(e)}'}), 500
 
     @expose('/my-channels')
-    @has_access
+    @jwt_required
     def get_my_channels(self):
         """
         取得我建立的頻道 (包含最新訊息)
@@ -491,6 +585,7 @@ class ChatChannelApi(ModelRestApi):
         channels = (
             self.datamodel.session.query(ChatChannel)
             .filter(ChatChannel.creator_id == g.user.id)
+            .filter(ChatChannel.is_active == True)
             .order_by(ChatChannel.created_on.desc())
             .all()
         )
@@ -525,3 +620,204 @@ class ChatChannelApi(ModelRestApi):
             'result': result,
             'count': len(result)
         })
+    @expose("/delete-channel/<int:channel_id>", methods=["POST"])
+    @jwt_required
+    def delete_channel(self, channel_id):
+        """
+        軟刪除聊天室 (設定 is_active = False)
+        POST /api/v1/chatchannelapi/delete-channel/123
+        """
+        try:
+            # 詳細的認證檢查
+            if not hasattr(g, "user") or not g.user:
+                return jsonify({"error": "未登入或認證失敗"}), 401
+            
+            # 檢查是否為匿名使用者
+            if g.user.__class__.__name__ == "AnonymousUserMixin":
+                return jsonify({"error": "未認證使用者"}), 401
+            
+            # 檢查使用者是否有 id 屬性
+            if not hasattr(g.user, "id"):
+                return jsonify({"error": "使用者物件無效"}), 401
+                
+            print(f"刪除頻道請求 - 認證成功: user_id={g.user.id}, username={getattr(g.user, 'username', 'N/A')}")
+            
+            # 查詢頻道
+            channel = self.datamodel.get(channel_id)
+            if not channel:
+                return jsonify({"error": "頻道不存在"}), 404
+            
+            # 檢查頻道是否已經被刪除
+            if not channel.is_active:
+                return jsonify({"error": "頻道已被刪除"}), 400
+            
+            # 權限檢查：只有創建者或管理員可以刪除
+            is_admin = hasattr(g.user, "roles") and any(role.name == "Admin" for role in g.user.roles)
+            is_creator = channel.creator_id == g.user.id
+            
+            if not (is_creator or is_admin):
+                return jsonify({"error": "沒有權限刪除此頻道"}), 403
+            
+            # 防止刪除預設頻道 (ID = 1)
+            if channel.id == 1:
+                return jsonify({"error": "無法刪除預設頻道"}), 400
+            
+            # 軟刪除：設定 is_active = False
+            channel.is_active = False
+            channel.changed_by_fk = g.user.id
+            channel.changed_on = datetime.datetime.now(timezone.utc)
+            
+            # 儲存變更
+            self.datamodel.edit(channel)
+            
+            print(f"頻道 {channel.name} (ID: {channel.id}) 已被用戶 {g.user.username} 軟刪除")
+            
+            return jsonify({
+                "message": f"頻道 \"{channel.name}\" 已成功刪除",
+                "data": {
+                    "channel_id": channel.id,
+                    "channel_name": channel.name,
+                    "deleted_by": g.user.username,
+                    "deleted_at": channel.changed_on.isoformat()
+                }
+            }), 200
+
+        except Exception as e:
+            # 回滾資料庫變更
+            self.datamodel.session.rollback()
+            # 印出詳細錯誤供調試
+            import traceback
+            print(f"刪除頻道時發生錯誤: {str(e)}")
+            print(f"錯誤堆疊: {traceback.format_exc()}")
+            return jsonify({"error": f"刪除失敗: {str(e)}"}), 500
+
+    @expose("/restore-channel/<int:channel_id>", methods=["POST"])
+    @jwt_required
+    def restore_channel(self, channel_id):
+        """
+        恢復已刪除的聊天室 (設定 is_active = True)
+        POST /api/v1/chatchannelapi/restore-channel/123
+        """
+        try:
+            # 詳細的認證檢查
+            if not hasattr(g, "user") or not g.user:
+                return jsonify({"error": "未登入或認證失敗"}), 401
+            
+            # 檢查是否為匿名使用者
+            if g.user.__class__.__name__ == "AnonymousUserMixin":
+                return jsonify({"error": "未認證使用者"}), 401
+            
+            # 檢查使用者是否有 id 屬性
+            if not hasattr(g.user, "id"):
+                return jsonify({"error": "使用者物件無效"}), 401
+                
+            print(f"恢復頻道請求 - 認證成功: user_id={g.user.id}, username={getattr(g.user, 'username', 'N/A')}")
+            
+            # 查詢頻道 (包含已刪除的)
+            channel = self.datamodel.session.query(ChatChannel).filter(ChatChannel.id == channel_id).first()
+            if not channel:
+                return jsonify({"error": "頻道不存在"}), 404
+            
+            # 檢查頻道是否已經是啟用狀態
+            if channel.is_active:
+                return jsonify({"error": "頻道並未被刪除"}), 400
+            
+            # 權限檢查：只有創建者或管理員可以恢復
+            is_admin = hasattr(g.user, "roles") and any(role.name == "Admin" for role in g.user.roles)
+            is_creator = channel.creator_id == g.user.id
+            
+            if not (is_creator or is_admin):
+                return jsonify({"error": "沒有權限恢復此頻道"}), 403
+            
+            # 恢復：設定 is_active = True
+            channel.is_active = True
+            channel.changed_by_fk = g.user.id
+            channel.changed_on = datetime.datetime.now(timezone.utc)
+            
+            # 儲存變更
+            self.datamodel.edit(channel)
+            
+            print(f"頻道 {channel.name} (ID: {channel.id}) 已被用戶 {g.user.username} 恢復")
+            
+            return jsonify({
+                "message": f"頻道 \"{channel.name}\" 已成功恢復",
+                "data": {
+                    "channel_id": channel.id,
+                    "channel_name": channel.name,
+                    "restored_by": g.user.username,
+                    "restored_at": channel.changed_on.isoformat()
+                }
+            }), 200
+
+        except Exception as e:
+            # 回滾資料庫變更
+            self.datamodel.session.rollback()
+            # 印出詳細錯誤供調試
+            import traceback
+            print(f"恢復頻道時發生錯誤: {str(e)}")
+            print(f"錯誤堆疊: {traceback.format_exc()}")
+            return jsonify({"error": f"恢復失敗: {str(e)}"}), 500
+
+    @expose("/deleted-channels")
+    @jwt_required
+    def get_deleted_channels(self):
+        """
+        取得已刪除的頻道列表 (只有管理員或創建者可以存取)
+        GET /api/v1/chatchannelapi/deleted-channels
+        """
+        try:
+            # 詳細的認證檢查
+            if not hasattr(g, "user") or not g.user:
+                return jsonify({"error": "未登入或認證失敗"}), 401
+            
+            # 檢查是否為匿名使用者
+            if g.user.__class__.__name__ == "AnonymousUserMixin":
+                return jsonify({"error": "未認證使用者"}), 401
+            
+            # 檢查使用者是否有 id 屬性
+            if not hasattr(g.user, "id"):
+                return jsonify({"error": "使用者物件無效"}), 401
+                
+            print(f"查詢已刪除頻道 - 認證成功: user_id={g.user.id}, username={getattr(g.user, 'username', 'N/A')}")
+            
+            # 權限檢查：只有管理員或創建者可以查看已刪除的頻道
+            is_admin = hasattr(g.user, "roles") and any(role.name == "Admin" for role in g.user.roles)
+            
+            if is_admin:
+                # 管理員可以查看所有已刪除的頻道
+                deleted_channels = (
+                    self.datamodel.session.query(ChatChannel)
+                    .filter(ChatChannel.is_active == False)
+                    .order_by(ChatChannel.changed_on.desc())
+                    .all()
+                )
+            else:
+                # 一般用戶只能查看自己創建的已刪除頻道
+                deleted_channels = (
+                    self.datamodel.session.query(ChatChannel)
+                    .filter(ChatChannel.is_active == False)
+                    .filter(ChatChannel.creator_id == g.user.id)
+                    .order_by(ChatChannel.changed_on.desc())
+                    .all()
+                )
+            
+            # 轉換為字典格式
+            result = []
+            for channel in deleted_channels:
+                channel_data = channel.to_dict()
+                channel_data["status"] = "deleted"
+                channel_data["deleted_at"] = channel_data.get("changed_on")
+                result.append(channel_data)
+            
+            return jsonify({
+                "result": result,
+                "count": len(result)
+            })
+
+        except Exception as e:
+            # 印出詳細錯誤供調試
+            import traceback
+            print(f"查詢已刪除頻道時發生錯誤: {str(e)}")
+            print(f"錯誤堆疊: {traceback.format_exc()}")
+            return jsonify({"error": f"查詢失敗: {str(e)}"}), 500
+
