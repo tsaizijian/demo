@@ -32,6 +32,9 @@
       :popup="true"
       class="message-context-menu"
     />
+    
+    <!-- 確認刪除彈窗 -->
+    <ConfirmPopup />
 
     <!-- 時間戳 -->
     <div
@@ -56,6 +59,7 @@ import { useSocket } from "~/composables/useSocket";
 import { useContextMenu } from "~/composables/useContextMenu";
 import { formatLocalTime, getDetailedTime } from "~/utils/timeUtils";
 import { useTimeUpdate } from "~/composables/useTimeUpdate";
+import { useConfirm } from "primevue/useconfirm";
 
 const props = defineProps({
   message: {
@@ -72,6 +76,7 @@ const channelStore = useChannelStore();
 const userStore = useUserStore();
 const { deleteMessage: socketDeleteMessage, isConnected } = useSocket();
 const { setCurrentMessageId, clearCurrentMessageId, getCurrentMessageId } = useContextMenu();
+const confirm = useConfirm();
 
 // Menu ref
 const contextMenu = ref();
@@ -95,7 +100,7 @@ const contextMenuItems = computed(() => {
     items.push({
       label: "刪除",
       icon: "pi pi-trash",
-      command: handleDelete,
+      command: (event) => handleDelete(event.originalEvent),
       class: "text-red-600",
     });
   }
@@ -129,16 +134,30 @@ const handleContextMenu = (event) => {
   contextMenu.value?.toggle(event);
 };
 
-const handleDelete = async () => {
+const handleDelete = async (event) => {
   contextMenu.value?.hide();
-  clearCurrentMessageId();
-  if (confirm("確定要刪除這則訊息嗎？")) {
-    if (isConnected()) {
-      socketDeleteMessage(props.message.id);
-    } else {
-      await channelStore.deleteMessage(props.message.id);
+  
+  confirm.require({
+    target: event.target,
+    message: '確定要刪除這則訊息嗎？',
+    header: '刪除訊息',
+    icon: 'pi pi-exclamation-triangle',
+    rejectClass: 'p-button-secondary p-button-outlined',
+    rejectLabel: '取消',
+    acceptLabel: '刪除',
+    acceptClass: 'p-button-danger',
+    accept: async () => {
+      if (isConnected()) {
+        socketDeleteMessage(props.message.id);
+      } else {
+        await channelStore.deleteMessage(props.message.id);
+      }
+      clearCurrentMessageId();
+    },
+    reject: () => {
+      clearCurrentMessageId();
     }
-  }
+  });
 };
 
 const handleReply = () => {
