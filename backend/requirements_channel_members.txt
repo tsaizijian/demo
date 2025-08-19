@@ -1,0 +1,8 @@
+# 頻道成員管理功能的額外依賴項
+flask-bcrypt>=1.0.1
+
+# 如果使用 uv，可以執行：
+# uv add flask-bcrypt
+
+# 如果使用 pip，可以執行：
+# pip install flask-bcrypt

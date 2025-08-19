@@ -1,5 +1,6 @@
 <template>
-  <Card class="chat-area-card">
+  <div class="chat-area-container">
+    <Card class="chat-area-card">
     <!-- 聊天室標題 -->
     <template #header>
       <div v-if="activeChannel" class="flex items-center justify-between">
@@ -14,6 +15,15 @@
           </div>
         </div>
         <div class="flex items-center gap-2">
+          <!-- 成員管理按鈕 -->
+          <Button 
+            icon="pi pi-users" 
+            size="small" 
+            severity="secondary"
+            @click="toggleMembersSidebar"
+            v-tooltip="'成員管理'"
+            class="members-button"
+          />
           <Badge
             :value="connectionStatus"
             :severity="connectionBadgeSeverity"
@@ -103,7 +113,13 @@
     <template #footer v-if="activeChannel">
       <ChatInput />
     </template>
-  </Card>
+    </Card>
+    
+    <!-- 成員側邊欄 -->
+    <div v-if="showMembersSidebar" class="members-sidebar">
+      <ChannelMembersSidebar />
+    </div>
+  </div>
 </template>
 
 <script setup>
@@ -113,6 +129,7 @@ import { useUserStore } from "~/stores/user";
 import { useSocket } from "~/composables/useSocket";
 import MessageItem from "~/components/MessageItem.vue";
 import ChatInput from "~/components/ChatInput.vue";
+import ChannelMembersSidebar from "~/components/ChannelMembersSidebar.vue";
 
 defineOptions({ name: "ChatArea" });
 
@@ -132,6 +149,9 @@ const lastScrollTop = ref(0);
 
 // 顯示跳到底部按鈕
 const showScrollToBottom = ref(false);
+
+// 成員側邊欄顯示狀態
+const showMembersSidebar = ref(false);
 
 /** 智能顯示正在輸入的文字 */
 const typingDisplayText = computed(() => {
@@ -182,6 +202,11 @@ const shouldShowSenderName = (message, index) => {
   const curTs = message.created_on ? new Date(message.created_on).getTime() : 0;
   const prevTs = prev.created_on ? new Date(prev.created_on).getTime() : 0;
   return curTs - prevTs > 5 * 60 * 1000;
+};
+
+/** 切換成員側邊欄顯示 */
+const toggleMembersSidebar = () => {
+  showMembersSidebar.value = !showMembersSidebar.value;
 };
 
 /** 滾至底部（SSR/CSR 安全） */
@@ -411,6 +436,30 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* 聊天區域容器 */
+.chat-area-container {
+  display: flex;
+  height: 100vh;
+  flex: 1;
+}
+
+/* 成員側邊欄 */
+.members-sidebar {
+  width: 320px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--surface-border);
+  background: var(--surface-card);
+}
+
+/* 成員管理按鈕 */
+.members-button {
+  transition: all 0.2s ease;
+}
+
+.members-button:hover {
+  transform: scale(1.05);
+}
+
 /* 聊天區域卡片樣式 */
 .chat-area-card {
   flex: 1;

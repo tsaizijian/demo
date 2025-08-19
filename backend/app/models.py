@@ -101,6 +101,75 @@ class ChatMessage(AuditMixin, Model):
             }
 
 
+class ChannelMember(AuditMixin, Model):
+    """頻道成員關係模型"""
+    __tablename__ = 'channel_members'
+
+    id = Column(Integer, primary_key=True)
+
+    # 關聯關係
+    channel_id = Column(Integer, ForeignKey('chat_channels.id'), nullable=False)
+    user_id = Column(Integer, ForeignKey('ab_user.id'), nullable=False)
+
+    # 關聯對象
+    channel = relationship("ChatChannel", backref="members")
+    user = relationship("User", foreign_keys=[user_id], backref="channel_memberships")
+
+    # 成員角色
+    role = Column(String(20), default='member', comment='成員角色: owner, admin, member')
+
+    # 加入狀態
+    status = Column(String(20), default='active', comment='成員狀態: active, invited, banned, left')
+
+    # 索引優化
+    __table_args__ = (
+        # 確保同一用戶在同一頻道只有一個有效記錄
+        Index('idx_channel_user_unique', 'channel_id', 'user_id'),
+        Index('idx_channel_members_status', 'channel_id', 'status'),
+        Index('idx_user_channels', 'user_id', 'status'),
+    )
+
+    def __repr__(self):
+        return f'<ChannelMember {self.user_id}@{self.channel_id} ({self.role})>'
+
+    def to_dict(self):
+        """轉換為字典格式，供 API 回傳使用"""
+        try:
+            username = ''
+            display_name = ''
+            if self.user:
+                username = getattr(self.user, 'username', '')
+                # 嘗試獲取 display_name（可能來自 UserProfile）
+                if hasattr(self.user, 'profile') and self.user.profile:
+                    display_name = getattr(self.user.profile, 'display_name', username)
+                else:
+                    display_name = f"{getattr(self.user, 'first_name', '')} {getattr(self.user, 'last_name', '')}".strip() or username
+            
+            return {
+                'id': self.id,
+                'channel_id': self.channel_id,
+                'user_id': self.user_id,
+                'username': username,
+                'display_name': display_name,
+                'role': self.role,
+                'status': self.status,
+                'created_on': to_iso_utc(self.created_on),
+                'changed_on': to_iso_utc(self.changed_on)
+            }
+        except Exception as e:
+            return {
+                'id': getattr(self, 'id', None),
+                'channel_id': getattr(self, 'channel_id', None),
+                'user_id': getattr(self, 'user_id', None),
+                'username': '',
+                'display_name': '',
+                'role': getattr(self, 'role', 'member'),
+                'status': getattr(self, 'status', 'active'),
+                'created_on': None,
+                'changed_on': None
+            }
+
+
 class UserProfile(AuditMixin, Model):
     """
     使用者資料擴充模型 (擴充 Flask-AppBuilder User)
@@ -214,6 +283,14 @@ class ChatChannel(AuditMixin, Model):
 
     # 最大成員數
     max_members = Column(Integer, default=100, comment='最大成員數')
+    
+    # 🆕 新增欄位：成員數量 - 自動同步更新
+    member_count = Column(Integer, default=0, comment='成員數量 - 自動同步更新')
+
+    # 🆕 頻道密碼功能
+    join_password = Column(String(255), nullable=True, comment='頻道加入密碼 (bcrypt 加密)')
+    password_required = Column(Boolean, default=False, comment='是否需要密碼才能加入')
+    allow_join_by_id = Column(Boolean, default=False, comment='是否允許通過頻道ID直接加入')
 
     def __repr__(self):
         return f'<ChatChannel {self.id}: {self.name}>'
@@ -234,6 +311,9 @@ class ChatChannel(AuditMixin, Model):
                 'creator_id': self.creator_id,
                 'creator_name': creator_name,
                 'max_members': self.max_members,
+                'member_count': self.member_count,
+                'password_required': self.password_required,
+                'allow_join_by_id': self.allow_join_by_id,
                 'created_on': to_iso_utc(self.created_on)
             }
         except Exception as e:
@@ -246,6 +326,17 @@ class ChatChannel(AuditMixin, Model):
                 'creator_id': getattr(self, 'creator_id', None),
                 'creator_name': '',
                 'max_members': getattr(self, 'max_members', 100),
+                'member_count': getattr(self, 'member_count', 0),
+                'password_required': getattr(self, 'password_required', False),
+                'allow_join_by_id': getattr(self, 'allow_join_by_id', False),
                 'created_on': None
             }
+    
+    def update_member_count(self):
+        """更新成員數量"""
+        from sqlalchemy import func
+        from . import db
+        self.member_count = db.session.query(func.count(ChannelMember.id))\
+            .filter_by(channel_id=self.id, status='active').scalar()
+        db.session.commit()
 

@@ -43,7 +43,7 @@ class JWTSecurityManager(SecurityManager):
         # 如果沒有認證用戶，對於 API 端點返回 False，對於其他端點使用預設行為
         if not current_user:
             api_view_names = [
-                'ChatMessageApi', 'UserProfileApi', 'ChatChannelApi', 'JWTAuthApi', 'RegisterApi'
+                'ChatMessageApi', 'UserProfileApi', 'ChatChannelApi', 'JWTAuthApi', 'RegisterApi', 'ChannelMemberApi'
             ]
             if view_name in api_view_names:
                 print(f"has_access: API 端點未認證 {view_name}.{permission_name}: False")
@@ -60,7 +60,7 @@ class JWTSecurityManager(SecurityManager):
         ]
         
         api_view_names = [
-            'ChatMessageApi', 'UserProfileApi', 'ChatChannelApi', 'JWTAuthApi', 'RegisterApi'
+            'ChatMessageApi', 'UserProfileApi', 'ChatChannelApi', 'JWTAuthApi', 'RegisterApi', 'ChannelMemberApi'
         ]
         
         # 管理界面的權限檢查

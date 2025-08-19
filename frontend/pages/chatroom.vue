@@ -7,7 +7,6 @@ import ChatSidebar from "~/components/ChatSidebar.vue";
 import ChatArea from "~/components/ChatArea.vue";
 import UserActionBar from "~/components/UserActionBar.vue";
 import EditProfile from "~/components/EditProfile.vue";
-import CreateChannelSidebar from "~/components/CreateChannelSidebar.vue";
 import DeletedChannelsView from "~/components/DeletedChannelsView.vue";
 
 // 設定頁面元資訊
@@ -161,7 +160,6 @@ onUnmounted(() => {
         :connectionStatusClass="connectionStatusClass"
         @show-user-settings="showUserSettings"
         @logout="handleLogout"
-        @create-channel="() => channelStore.toggleChannelCreator()"
       />
 
       <UserActionBar
@@ -186,10 +184,5 @@ onUnmounted(() => {
 
     <!-- 中間聊天區域 -->
     <ChatArea />
-
-    <!-- 右側邊欄 -->
-    <div v-if="channelStore.showChannelCreator" class="sidebar-container">
-      <CreateChannelSidebar @back="channelStore.toggleChannelCreator" />
-    </div>
   </div>
 </template>

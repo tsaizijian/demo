@@ -6,11 +6,13 @@ from flask_appbuilder.security.sqla.models import User
 from . import appbuilder, db
 from .models import ChatMessage, UserProfile, ChatChannel
 from .apis import ChatMessageApi, UserProfileApi, ChatChannelApi
+from .channel_member_api import ChannelMemberApi
 
 # Register REST APIs
 appbuilder.add_api(ChatMessageApi)
 appbuilder.add_api(UserProfileApi)
 appbuilder.add_api(ChatChannelApi)
+appbuilder.add_api(ChannelMemberApi)
 
 # Import and register security APIs
 from .security_apis import JWTAuthApi, RegisterApi

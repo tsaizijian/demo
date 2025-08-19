@@ -4,13 +4,23 @@
     <template #header>
       <div class="flex items-center justify-between">
         <h2 class="text-lg font-semibold">頻道列表</h2>
-        <Button
-          @click="channelStore.toggleChannelCreator()"
-          icon="pi pi-plus"
-          text
-          size="small"
-          :title="channelStore.showChannelCreator ? '關閉' : '建立新頻道'"
-        />
+        <div class="flex items-center gap-2">
+          <Button
+            @click="showJoinDialog = true"
+            icon="pi pi-sign-in"
+            text
+            size="small"
+            severity="secondary"
+            v-tooltip="'加入頻道'"
+          />
+          <Button
+            @click="showCreateDialog = true"
+            icon="pi pi-plus"
+            text
+            size="small"
+            v-tooltip="'建立新頻道'"
+          />
+        </div>
       </div>
     </template>
 
@@ -258,6 +268,25 @@
 
   <!-- 刪除確認對話框 -->
   <ConfirmPopup />
+  
+  <!-- 加入頻道對話框 -->
+  <JoinChannelDialog
+    v-model:visible="showJoinDialog"
+    @joined="handleChannelJoined"
+  />
+  
+  <!-- 頻道設定對話框 -->
+  <ChannelSettingsDialog
+    v-model:visible="showSettingsDialog"
+    :channel="selectedChannelForSettings"
+    @updated="handleChannelUpdated"
+  />
+  
+  <!-- 建立頻道對話框 -->
+  <CreateChannelDialog
+    v-model:visible="showCreateDialog"
+    @created="handleChannelCreated"
+  />
 </template>
 
 <script setup>
@@ -265,6 +294,9 @@ import { useChannelStore } from "~/stores/channel";
 import { useUserStore } from "~/stores/user";
 import { useConfirm } from "primevue/useconfirm";
 import { useToast } from "primevue/usetoast";
+import JoinChannelDialog from "./JoinChannelDialog.vue";
+import ChannelSettingsDialog from "./ChannelSettingsDialog.vue";
+import CreateChannelDialog from "./CreateChannelDialog.vue";
 
 // 不再需要 emit 事件，直接操作 store
 
@@ -276,6 +308,12 @@ const toast = useToast();
 // refs
 const channelMenuPanel = ref(null);
 let selectedChannelForMenu = ref(null);
+
+// 對話框狀態
+const showJoinDialog = ref(false);
+const showSettingsDialog = ref(false);
+const showCreateDialog = ref(false);
+const selectedChannelForSettings = ref(null);
 
 // 組件方法
 const switchChannel = async (channel) => {
@@ -328,7 +366,8 @@ const toggleChannelMenu = (channel, event) => {
 // 編輯頻道
 const editChannel = () => {
   if (selectedChannelForMenu.value) {
-    channelStore.openChannelSettings(selectedChannelForMenu.value);
+    selectedChannelForSettings.value = selectedChannelForMenu.value;
+    showSettingsDialog.value = true;
     channelMenuPanel.value.hide();
   }
 };
@@ -439,6 +478,22 @@ const formatTime = (dateString) => {
     month: "numeric",
     day: "numeric",
   });
+};
+
+// 對話框事件處理
+const handleChannelJoined = () => {
+  // 重新載入頻道列表
+  channelStore.fetchChannels();
+};
+
+const handleChannelUpdated = () => {
+  // 重新載入頻道列表
+  channelStore.fetchChannels();
+};
+
+const handleChannelCreated = () => {
+  // 重新載入頻道列表
+  channelStore.fetchChannels();
 };
 
 // 載入頻道資料

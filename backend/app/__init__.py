@@ -24,11 +24,12 @@ appbuilder = AppBuilder(app, db.session, security_manager_class=JWTSecurityManag
 
 CORS(
     app,
-    resources={r"/api/*": {"origins": "*"}},
-    supports_credentials=True,
-    allow_headers=["Content-Type", "Authorization"],
-    expose_headers=["Content-Type", "Authorization"],
+    resources=r"/api/*",                          # 只針對 /api/ 路徑
+    origins=["http://localhost:3000"],            # 前端固定的來源
+    supports_credentials=True,                    # 讓 Cookie/Session 可跨域
     methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],   # 允許 JWT header
+    expose_headers=["Content-Type", "Authorization"],
 )
 
 # 使用自訂的 JWT 安全管理器
@@ -48,3 +49,7 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
 """
 
 from . import views, socketio_server
+
+# 🔄 初始化資料庫 Hook
+from .hooks import setup_database_hooks
+setup_database_hooks()

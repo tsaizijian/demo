@@ -544,6 +544,19 @@ class ChatChannelApi(ModelRestApi):
             
             # 重新整理以取得資料庫分配的ID
             self.datamodel.session.refresh(channel)
+            
+            # 🔧 修復：自動將創建者加入為該頻道的擁有者成員
+            from .models import ChannelMember
+            creator_member = ChannelMember(
+                channel_id=channel.id,
+                user_id=g.user.id,
+                role='owner',
+                status='active',
+                created_by_fk=g.user.id,
+                changed_by_fk=g.user.id
+            )
+            self.datamodel.session.add(creator_member)
+            self.datamodel.session.commit()
 
             return jsonify({
                 'message': '頻道建立成功',
