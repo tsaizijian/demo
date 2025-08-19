@@ -44,43 +44,63 @@ def setup_channel_permissions():
         print("❌ 找不到任何適當的角色來設定權限")
         return False
     
-    # 需要的權限列表
-    required_permissions = [
+    # ChatChannelApi 權限
+    channel_permissions = [
         'can_get_public_channels',
         'can_create_channel', 
         'can_get_my_channels',
         'can_get',
         'can_post',
         'can_put',
+        'can_edit',
         'can_delete'
     ]
     
-    # ChatChannelApi的視圖選單
-    view_menu = appbuilder.sm.find_view_menu('ChatChannelApi')
-    if not view_menu:
+    # ChannelMemberApi 權限
+    member_permissions = [
+        'can_get_channel_members',
+        'can_join_channel_by_id', 
+        'can_leave_channel',
+        'can_remove_member',
+        'can_transfer_ownership',
+        'can_update_member_role',
+        'can_reset_channel_password',
+        'can_get_channel_admin_info',
+        'can_post',  # 允許 POST 請求
+        'can_put',   # 允許 PUT 請求  
+        'can_get'    # 允許 GET 請求
+    ]
+    
+    # 設定 ChatChannelApi 權限
+    channel_view_menu = appbuilder.sm.find_view_menu('ChatChannelApi')
+    if not channel_view_menu:
         print("❌ 找不到ChatChannelApi視圖選單")
         return False
+    print(f"✅ 找到視圖選單: {channel_view_menu.name}")
     
-    print(f"✅ 找到視圖選單: {view_menu.name}")
+    # 設定 ChannelMemberApi 權限
+    member_view_menu = appbuilder.sm.find_view_menu('ChannelMemberApi')
+    if not member_view_menu:
+        print("❌ 找不到ChannelMemberApi視圖選單")
+        return False
+    print(f"✅ 找到視圖選單: {member_view_menu.name}")
     
     # 為每個權限建立PermissionView並添加到所有目標角色
     added_permissions = []
     
-    for perm_name in required_permissions:
+    # 處理 ChatChannelApi 權限
+    for perm_name in channel_permissions:
         try:
-            # 尋找或建立權限
             permission = appbuilder.sm.find_permission(perm_name)
             if not permission:
                 permission = appbuilder.sm.add_permission(perm_name)
                 print(f"   建立新權限: {perm_name}")
             
-            # 尋找或建立PermissionView
-            perm_view = appbuilder.sm.find_permission_view_menu(perm_name, view_menu.name)
+            perm_view = appbuilder.sm.find_permission_view_menu(perm_name, channel_view_menu.name)
             if not perm_view:
-                perm_view = appbuilder.sm.add_permission_view_menu(perm_name, view_menu.name)
-                print(f"   建立權限視圖: {perm_name} on {view_menu.name}")
+                perm_view = appbuilder.sm.add_permission_view_menu(perm_name, channel_view_menu.name)
+                print(f"   建立權限視圖: {perm_name} on {channel_view_menu.name}")
             
-            # 添加權限到所有目標角色
             for role in roles_to_update:
                 if perm_view not in role.permissions:
                     role.permissions.append(perm_view)
@@ -88,7 +108,29 @@ def setup_channel_permissions():
                     print(f"   ✅ 添加權限到{role.name}角色: {perm_name}")
                 else:
                     print(f"   ⭕ {role.name}角色已有權限: {perm_name}")
-                
+        except Exception as e:
+            print(f"   ❌ 處理權限 {perm_name} 時發生錯誤: {e}")
+    
+    # 處理 ChannelMemberApi 權限
+    for perm_name in member_permissions:
+        try:
+            permission = appbuilder.sm.find_permission(perm_name)
+            if not permission:
+                permission = appbuilder.sm.add_permission(perm_name)
+                print(f"   建立新權限: {perm_name}")
+            
+            perm_view = appbuilder.sm.find_permission_view_menu(perm_name, member_view_menu.name)
+            if not perm_view:
+                perm_view = appbuilder.sm.add_permission_view_menu(perm_name, member_view_menu.name)
+                print(f"   建立權限視圖: {perm_name} on {member_view_menu.name}")
+            
+            for role in roles_to_update:
+                if perm_view not in role.permissions:
+                    role.permissions.append(perm_view)
+                    added_permissions.append(f"{perm_name} -> {role.name}")
+                    print(f"   ✅ 添加權限到{role.name}角色: {perm_name}")
+                else:
+                    print(f"   ⭕ {role.name}角色已有權限: {perm_name}")
         except Exception as e:
             print(f"   ❌ 處理權限 {perm_name} 時發生錯誤: {e}")
     

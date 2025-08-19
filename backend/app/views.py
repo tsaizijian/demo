@@ -69,7 +69,7 @@ class ChatChannelView(ModelView):
     datamodel = SQLAInterface(ChatChannel)
     
     list_columns = ['id', 'name', 'description', 'is_private', 'is_active', 'created_on']
-    show_columns = ['id', 'name', 'description', 'is_private', 'is_active', 'max_members', 'created_on', 'changed_on']
+    show_columns = ['id', 'name', 'description', 'is_private', 'is_active', 'max_members', 'join_password']
     add_columns = ['name', 'description', 'is_private', 'max_members']
     edit_columns = ['name', 'description', 'is_private', 'is_active', 'max_members']
     search_columns = ['name', 'description']

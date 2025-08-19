@@ -404,17 +404,17 @@ class ChatChannelApi(ModelRestApi):
     
     # 🔒 安全性：禁用危險的 REST 端點，只保留自定義端點
     base_permissions = [
-
         'can_get_public_channels',
         'can_create_channel',
-        'can_get_my_channels'
+        'can_get_my_channels',
+        'can_put'  # 允許 PUT 請求編輯權限
     ]
 
     # 簡化欄位配置
     list_columns = ['id', 'name', 'description', 'is_active', 'created_on']
     show_columns = ['id', 'name', 'description', 'is_active', 'created_on']
     add_columns = ['name', 'description']
-    edit_columns = ['name', 'description', 'is_active']
+    edit_columns = ['name', 'description', 'is_active', 'is_private', 'max_members', 'allow_join_by_id', 'password_required']
 
     # 預設排序
     base_order = ('created_on', 'desc')
@@ -432,11 +432,30 @@ class ChatChannelApi(ModelRestApi):
             raise Exception("無權限查看此私人頻道")
     
     def pre_update(self, obj):
-        """🔒 安全檢查：用戶只能修改自己創建的頻道"""
+        """🔒 安全檢查：只有頻道創建者、管理員或系統管理員可以修改頻道"""
         if not g.user:
             raise Exception("未認證")
-        if obj.creator_id != g.user.id and not self._is_admin():
-            raise Exception("無權限修改此頻道")
+        
+        # 系統管理員可以修改任何頻道
+        if self._is_admin():
+            return
+            
+        # 檢查是否為頻道創建者
+        if obj.creator_id == g.user.id:
+            return
+            
+        # 檢查是否為頻道管理員 (owner/admin)
+        from .models import ChannelMember
+        member = self.datamodel.session.query(ChannelMember).filter_by(
+            channel_id=obj.id,
+            user_id=g.user.id,
+            status='active'
+        ).first()
+        
+        if member and member.role in ['owner', 'admin']:
+            return
+            
+        raise Exception("無權限修改此頻道")
     
     def pre_delete(self, obj):
         """🔒 安全檢查：用戶只能刪除自己創建的頻道"""
@@ -535,8 +554,16 @@ class ChatChannelApi(ModelRestApi):
                 description=data.get('description', ''),
                 is_private=data.get('is_private', False),
                 creator_id=g.user.id,
-                max_members=data.get('max_members', 100)
+                max_members=data.get('max_members', 100),
+                allow_join_by_id=data.get('allow_join_by_id', False),
+                password_required=data.get('password_required', False)
             )
+
+            # 處理密碼設定
+            if data.get('password_required') and data.get('join_password'):
+                from flask_bcrypt import Bcrypt
+                bcrypt = Bcrypt()
+                channel.join_password = bcrypt.generate_password_hash(data.get('join_password')).decode('utf-8')
 
             # 使用直接的資料庫操作
             self.datamodel.session.add(channel)
@@ -577,7 +604,7 @@ class ChatChannelApi(ModelRestApi):
     def get_my_channels(self):
         """
         取得我建立的頻道 (包含最新訊息)
-        GET /api/v1/chatchannel/my-channels
+        GET /api/v1/chatchannelapi/my-channels
         """
         # 詳細的認證檢查
         if not hasattr(g, 'user') or not g.user:

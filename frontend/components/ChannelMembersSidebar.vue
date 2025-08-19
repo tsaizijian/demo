@@ -4,14 +4,6 @@
     <div class="members-header p-4 border-b flex items-center justify-between">
       <h3 class="text-lg font-semibold">成員 ({{ members.length }})</h3>
       <div class="flex items-center gap-2">
-        <!-- 加入頻道按鈕 -->
-        <Button
-          icon="pi pi-plus"
-          size="small"
-          severity="secondary"
-          @click="showJoinDialog = true"
-          v-tooltip="'加入頻道'"
-        />
         <!-- 頻道設定按鈕 -->
         <Button
           v-if="canManageChannel"
@@ -94,11 +86,6 @@
     <Menu ref="memberActionsMenu" :model="memberActionItems" :popup="true" />
 
     <!-- 對話框 -->
-    <JoinChannelDialog
-      v-model:visible="showJoinDialog"
-      @joined="handleChannelJoined"
-    />
-
     <ChannelSettingsDialog
       v-model:visible="showSettingsDialog"
       :channel="currentChannel"
@@ -121,7 +108,6 @@ import { useUserStore } from '~/stores/user'
 import { useToast } from 'primevue/usetoast'
 
 // Components
-import JoinChannelDialog from './JoinChannelDialog.vue'
 import ChannelSettingsDialog from './ChannelSettingsDialog.vue'
 import TransferOwnershipDialog from './TransferOwnershipDialog.vue'
 
@@ -134,7 +120,6 @@ const config = useRuntimeConfig()
 // Reactive data
 const members = ref([])
 const loading = ref(false)
-const showJoinDialog = ref(false)
 const showSettingsDialog = ref(false)
 const showTransferDialog = ref(false)
 const selectedMember = ref(null)
@@ -351,10 +336,6 @@ const getRoleSeverity = (role) => {
     member: 'secondary'
   }
   return severities[role] || 'secondary'
-}
-
-const handleChannelJoined = () => {
-  fetchMembers()
 }
 
 const handleChannelUpdated = () => {

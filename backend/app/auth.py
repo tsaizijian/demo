@@ -70,10 +70,13 @@ class JWTSecurityManager(SecurityManager):
             print(f"has_access: 管理界面權限檢查 {view_name}.{permission_name} for user {current_user.id}: {is_admin}")
             return is_admin
         
-        # API 端點權限檢查 - 認證用戶都可以存取
+        # API 端點權限檢查 - 讓 Flask-AppBuilder 處理具體權限檢查
         if view_name in api_view_names:
-            print(f"has_access: API 端點權限 {view_name}.{permission_name} for user {current_user.id}: True")
-            return True
+            print(f"has_access: API 端點權限 {view_name}.{permission_name} for user {current_user.id}: 委託給 Flask-AppBuilder")
+            # 先設定當前用戶，然後讓 Flask-AppBuilder 處理權限檢查（包括 pre_update 等）
+            from flask_login import login_user
+            login_user(current_user, remember=False)
+            return super(JWTSecurityManager, self).has_access(permission_name, view_name)
         
         # 對於其他權限，使用預設行為
         print(f"has_access: 未定義權限類型 {view_name}.{permission_name} for user {current_user.id}: 使用預設")

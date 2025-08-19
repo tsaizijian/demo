@@ -20,8 +20,31 @@ class ChannelMemberApi(ModelRestApi):
     """頻道成員管理 API"""
     datamodel = SQLAInterface(ChannelMember)
     
-    # 🔒 安全性：禁用不必要的端點
-    base_permissions = []
+    # 設定方法權限映射
+    method_permission_name = {
+        'join_channel_by_id': 'can_join_channel_by_id',
+        'leave_channel': 'can_leave_channel',
+        'remove_member': 'can_remove_member',
+        'update_member_role': 'can_update_member_role',
+        'get_channel_members': 'can_get_channel_members',
+        'search_users': 'can_search_users',
+        'get_user_channels': 'can_get_user_channels'
+    }
+    
+    # 🔒 安全性：只保留需要的權限
+    base_permissions = [
+        'can_get_channel_members',
+        'can_join_channel_by_id', 
+        'can_leave_channel',
+        'can_remove_member',
+        'can_transfer_ownership',
+        'can_update_member_role',
+        'can_reset_channel_password',
+        'can_get_channel_admin_info',
+        'can_post',  # 允許 POST 請求
+        'can_put',   # 允許 PUT 請求
+        'can_get'    # 允許 GET 請求
+    ]
     
     @expose('/channel/<int:channel_id>/members')
     @jwt_required
@@ -51,6 +74,27 @@ class ChannelMemberApi(ModelRestApi):
         except Exception as e:
             return jsonify({'error': f'獲取成員列表失敗: {str(e)}'}), 500
 
+    @expose('/my-channels', methods=['GET'])
+    @jwt_required
+    def get_user_channels(self):
+        """取得我加入的頻道（作為成員/管理員/擁有者）"""
+        try:
+            # 找到當前使用者為 active 成員的頻道
+            channels = (
+                db.session.query(ChatChannel)
+                .join(ChannelMember, ChannelMember.channel_id == ChatChannel.id)
+                .filter(ChannelMember.user_id == g.user.id)
+                .filter(ChannelMember.status == 'active')
+                .filter(ChatChannel.is_active == True)
+                .order_by(ChatChannel.created_on.desc())
+                .all()
+            )
+
+            result = [c.to_dict() for c in channels]
+            return jsonify({'result': result, 'count': len(result)})
+        except Exception as e:
+            return jsonify({'error': f'獲取我的頻道失敗: {str(e)}'}), 500
+
     @expose('/join-by-id', methods=['POST'])
     @jwt_required
     def join_channel_by_id(self):
@@ -59,26 +103,41 @@ class ChannelMemberApi(ModelRestApi):
             data = request.get_json()
             channel_id = data.get('channel_id')
             password = data.get('password', '')
+            # 調試：記錄輸入（不輸出密碼）
+            print(f"[join-by-id] user_id={getattr(g.user, 'id', None)} channel_id={channel_id} pw_provided={'yes' if password else 'no'}")
             
             if not channel_id:
                 return jsonify({'error': '頻道ID不能為空'}), 400
 
-            # 驗證頻道和密碼
+            # 驗證頻道
             channel = db.session.query(ChatChannel).filter_by(
                 id=channel_id,
-                is_active=True,
-                allow_join_by_id=True
+                is_active=True
             ).first()
 
             if not channel:
-                return jsonify({'error': '頻道不存在或不允許加入'}), 404
+                return jsonify({'error': '頻道不存在'}), 404
+            
+            # 檢查是否允許加入
+            # 私人頻道總是可以通過ID加入（如果知道密碼）
+            # 公開頻道需要設定 allow_join_by_id=True
+            if not channel.is_private and not channel.allow_join_by_id:
+                return jsonify({'error': '此頻道不允許通過ID加入'}), 403
 
             # 檢查密碼
             if channel.password_required:
                 if not password:
-                    return jsonify({'error': '此頻道需要密碼'}), 401
-                if not bcrypt.check_password_hash(channel.join_password, password):
-                    return jsonify({'error': '密碼錯誤'}), 401
+                    print("[join-by-id] 密碼檢查失敗：缺少密碼（password_required=True）")
+                    return jsonify({'error': '此頻道需要密碼'}), 403
+                try:
+                    ok = bcrypt.check_password_hash(channel.join_password, password)
+                except Exception as e:
+                    # 若資料不一致（例如未正確設定雜湊），視為驗證失敗
+                    print(f"[join-by-id] 密碼檢查異常：{e}")
+                    ok = False
+                if not ok:
+                    print("[join-by-id] 密碼檢查失敗：密碼不正確")
+                    return jsonify({'error': '密碼錯誤'}), 403
 
             # 🛡️ 防重入：檢查是否已經是 active 成員
             existing_member = db.session.query(ChannelMember).filter_by(
@@ -384,8 +443,7 @@ class ChannelMemberApi(ModelRestApi):
             if not channel:
                 return jsonify({'error': '頻道不存在'}), 404
 
-            # 更新密碼
-            channel.join_password = bcrypt.generate_password_hash(new_password).decode('utf-8')
+            channel.join_password = new_password
             channel.password_required = True
             channel.changed_on = datetime.now(timezone.utc)
             channel.changed_by_fk = g.user.id
@@ -461,7 +519,8 @@ class ChannelMemberApi(ModelRestApi):
                     'password_status': {
                         'has_password': bool(channel.join_password),
                         'can_reset_password': current_member.role in ['owner', 'admin']
-                    }
+                    },
+                    'channel_password': None  # bcrypt加密的密碼無法解密，只能通過重置來獲得新密碼
                 }
             })
             

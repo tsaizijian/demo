@@ -41,67 +41,32 @@
 
         <div class="space-y-3">
           <div class="flex items-center gap-3">
-            <Checkbox id="isPrivate" v-model="form.is_private" binary />
-            <label for="isPrivate" class="font-medium">私人頻道</label>
+            <Checkbox
+              id="isPrivate"
+              v-model="form.is_private"
+              binary
+              :disabled="true"
+            />
+            <label for="isPrivate" class="font-medium text-gray-500">
+              {{ form.is_private ? "私人頻道" : "公開頻道" }}
+            </label>
           </div>
-          <small class="text-gray-500 ml-6"
-            >私人頻道只有被邀請的成員才能看到</small
-          >
+          <small class="text-gray-500 ml-6">頻道建立後無法更改隱私設定</small>
         </div>
       </div>
 
-      <!-- 加入方式設定 -->
-      <div class="join-settings">
-        <h4 class="text-lg font-semibold mb-3">加入方式</h4>
+      <!-- 密碼設定 (僅私人頻道) -->
+      <div v-if="form.is_private" class="password-settings">
+        <h4 class="text-lg font-semibold mb-3">密碼設定</h4>
 
         <div class="space-y-4">
-          <div class="setting-item">
-            <div class="flex items-center gap-3 mb-2">
-              <Checkbox
-                id="allowJoinById"
-                v-model="form.allow_join_by_id"
-                binary
-              />
-              <label for="allowJoinById" class="font-medium"
-                >允許通過頻道ID加入</label
-              >
-            </div>
-            <small class="text-gray-500 ml-6"
-              >開啟後，其他用戶可以使用頻道ID直接加入</small
-            >
-          </div>
-
-          <div class="setting-item">
-            <div class="flex items-center gap-3 mb-2">
-              <Checkbox
-                id="passwordRequired"
-                v-model="form.password_required"
-                binary
-                :disabled="!form.allow_join_by_id"
-              />
-              <label for="passwordRequired" class="font-medium"
-                >需要密碼才能加入</label
-              >
-            </div>
-            <small class="text-gray-500 ml-6">
-              {{
-                form.allow_join_by_id
-                  ? "開啟後，加入頻道需要輸入密碼"
-                  : "請先啟用「允許通過頻道ID加入」"
-              }}
-            </small>
-          </div>
-
-          <!-- 密碼設定 -->
-          <div
-            v-if="form.password_required && form.allow_join_by_id"
-            class="password-setting ml-6"
-          >
+          <!-- 密碼輸入 -->
+          <div class="password-setting">
             <FloatLabel>
               <Password
                 id="joinPassword"
                 v-model="form.join_password"
-                placeholder="設定頻道密碼"
+                placeholder="設定或更新頻道密碼"
                 :feedback="false"
                 toggle-mask
                 class="w-full"
@@ -111,14 +76,14 @@
             <small v-if="errors.join_password" class="p-error">{{
               errors.join_password
             }}</small>
-            <small v-else class="text-gray-500">密碼長度至少6位字符</small>
+            <small v-else class="text-gray-500">留空表示不更改現有密碼</small>
           </div>
         </div>
       </div>
 
       <!-- 頻道資訊顯示 -->
-      <div v-if="form.allow_join_by_id" class="channel-info border-t pt-4">
-        <h4 class="text-lg font-semibold mb-3">分享資訊</h4>
+      <div class="channel-info border-t pt-4">
+        <h4 class="text-lg font-semibold mb-3">頻道資訊</h4>
         <div class="bg-gray-50 p-4 rounded-lg space-y-3">
           <div class="flex items-center justify-between">
             <div>
@@ -140,19 +105,12 @@
             <span class="ml-2">{{ channel?.member_count || 0 }} 人</span>
           </div>
 
-          <div v-if="form.password_required">
-            <span class="font-medium">當前密碼:</span>
-            <span class="ml-2 text-gray-500">{{
-              form.join_password ? "已設定" : "未設定"
-            }}</span>
-            <Button
-              v-if="canResetPassword"
-              label="重置密碼"
-              size="small"
-              severity="warn"
-              @click="showResetPasswordDialog = true"
-              class="ml-2"
-            />
+          <!-- 密碼狀態顯示 (僅私人頻道) -->
+          <div v-if="form.is_private">
+            <span class="font-medium">密碼狀態:</span>
+            <span class="ml-2 text-gray-500">
+              {{ channel?.password_required ? "已設定密碼" : "未設定密碼" }}
+            </span>
           </div>
         </div>
       </div>
@@ -320,8 +278,6 @@ const form = ref({
   name: "",
   description: "",
   is_private: false,
-  allow_join_by_id: false,
-  password_required: false,
   join_password: "",
   max_members: 100,
 });
@@ -370,7 +326,11 @@ const validateForm = () => {
     return false;
   }
 
-  if (form.value.password_required && form.value.join_password.length < 6) {
+  if (
+    form.value.is_private &&
+    form.value.join_password &&
+    form.value.join_password.length < 6
+  ) {
     errors.value.join_password = "密碼長度至少6位字符";
     return false;
   }
@@ -385,14 +345,20 @@ const saveSettings = async () => {
   error.value = "";
 
   try {
-    // 準備更新資料
-    const updateData = { ...form.value };
+    // 準備更新資料 - 包含所有設定
+    const updateData = {
+      name: form.value.name,
+      description: form.value.description,
+      max_members: form.value.max_members,
+    };
 
-    // 如果密碼沒有更改且不為空，則不發送密碼欄位
-    if (updateData.join_password === originalForm.value.join_password) {
-      delete updateData.join_password;
+    // 如果是私人頻道，包含私人頻道相關設定
+    if (form.value.is_private) {
+      updateData.allow_join_by_id = form.value.allow_join_by_id;
+      updateData.password_required = form.value.password_required;
     }
 
+    // 先更新基本設定
     const response = await $fetch(
       `${config.public.apiBase}/api/v1/chatchannelapi/${props.channel.id}`,
       {
@@ -405,6 +371,28 @@ const saveSettings = async () => {
         body: updateData,
       }
     );
+
+    // 如果是私人頻道且有密碼更改，單獨處理密碼更新
+    if (
+      form.value.is_private &&
+      form.value.join_password &&
+      form.value.join_password.trim()
+    ) {
+      await $fetch(
+        `${config.public.apiBase}/api/v1/channelmemberapi/channel/${props.channel.id}/reset-password`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            Authorization: `Bearer ${userStore.accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: {
+            new_password: form.value.join_password.trim(),
+          },
+        }
+      );
+    }
 
     if (response) {
       toast.add({
@@ -577,8 +565,6 @@ const initForm = () => {
       name: props.channel.name || "",
       description: props.channel.description || "",
       is_private: props.channel.is_private || false,
-      allow_join_by_id: props.channel.allow_join_by_id || false,
-      password_required: props.channel.password_required || false,
       join_password: "", // 不顯示現有密碼
       max_members: props.channel.max_members || 100,
     };
@@ -593,8 +579,6 @@ const resetForm = () => {
     name: "",
     description: "",
     is_private: false,
-    allow_join_by_id: false,
-    password_required: false,
     join_password: "",
     max_members: 100,
   };
@@ -632,17 +616,6 @@ watch(
     if (props.visible) {
       initForm();
       fetchAdminInfo(); // 載入管理員資訊
-    }
-  }
-);
-
-// 當關閉 allow_join_by_id 時，也關閉密碼要求
-watch(
-  () => form.value.allow_join_by_id,
-  (newValue) => {
-    if (!newValue) {
-      form.value.password_required = false;
-      form.value.join_password = "";
     }
   }
 );

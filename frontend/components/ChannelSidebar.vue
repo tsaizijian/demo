@@ -89,7 +89,10 @@
                   </div>
 
                   <!-- 頻道設定按鈕 -->
-                  <div v-if="canDeleteChannel(channel)" class="ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div
+                    v-if="canDeleteChannel(channel)"
+                    class="ml-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
                     <Button
                       @click.stop="toggleChannelMenu(channel, $event)"
                       icon="pi pi-cog"
@@ -170,7 +173,10 @@
                   </div>
 
                   <!-- 頻道設定按鈕 -->
-                  <div v-if="canDeleteChannel(channel)" class="ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div
+                    v-if="canDeleteChannel(channel)"
+                    class="ml-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
                     <Button
                       @click.stop="toggleChannelMenu(channel, $event)"
                       icon="pi pi-cog"
@@ -182,38 +188,6 @@
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 線上使用者 -->
-        <div class="px-3 py-2 border-t border-gray-100">
-          <div class="flex items-center justify-between mb-2">
-            <h3
-              class="text-xs font-medium text-gray-400 uppercase tracking-wider"
-            >
-              線上使用者
-            </h3>
-          </div>
-
-          <div class="space-y-0.5 max-h-32 overflow-y-auto">
-            <div
-              v-for="member in channelStore.currentChannelMembers"
-              :key="member.id"
-              class="flex items-center px-2 py-1 text-sm text-gray-700 rounded hover:bg-gray-50"
-            >
-              <div
-                class="w-2 h-2 bg-green-400 rounded-full mr-2 flex-shrink-0"
-              ></div>
-              <span class="truncate flex-1">{{ member.display_name }}</span>
-
-              <!-- 角色標籤 -->
-              <Tag
-                v-if="member.role !== 'member'"
-                :value="member.role === 'owner' ? '擁有者' : '管理員'"
-                severity="info"
-                class="ml-1 text-xs"
-              />
             </div>
           </div>
         </div>
@@ -268,20 +242,20 @@
 
   <!-- 刪除確認對話框 -->
   <ConfirmPopup />
-  
+
   <!-- 加入頻道對話框 -->
   <JoinChannelDialog
     v-model:visible="showJoinDialog"
     @joined="handleChannelJoined"
   />
-  
+
   <!-- 頻道設定對話框 -->
   <ChannelSettingsDialog
     v-model:visible="showSettingsDialog"
     :channel="selectedChannelForSettings"
     @updated="handleChannelUpdated"
   />
-  
+
   <!-- 建立頻道對話框 -->
   <CreateChannelDialog
     v-model:visible="showCreateDialog"
@@ -347,12 +321,12 @@ const isChannelAdmin = (channelId) => {
 
 // 檢查是否可以刪除頻道
 const canDeleteChannel = (channel) => {
-  console.log('檢查頻道刪除權限:', {
+  console.log("檢查頻道刪除權限:", {
     channel: channel,
     userProfile: userStore.userProfile,
     creator_id: channel.creator_id,
     user_id: userStore.userProfile?.user_id,
-    canDelete: channelStore.canDeleteChannel(channel)
+    canDelete: channelStore.canDeleteChannel(channel),
   });
   return channelStore.canDeleteChannel(channel);
 };
@@ -377,21 +351,21 @@ const confirmDeleteChannel = () => {
   if (!selectedChannelForMenu.value) return;
 
   const channel = selectedChannelForMenu.value;
-  
+
   confirm.require({
     target: event.currentTarget,
     message: `確定要刪除頻道「${channel.name}」嗎？`,
-    header: '刪除頻道',
-    icon: 'pi pi-exclamation-triangle',
-    acceptLabel: '刪除',
-    rejectLabel: '取消',
-    acceptClass: 'p-button-danger',
+    header: "刪除頻道",
+    icon: "pi pi-exclamation-triangle",
+    acceptLabel: "刪除",
+    rejectLabel: "取消",
+    acceptClass: "p-button-danger",
     accept: async () => {
       await deleteChannel(channel.id);
     },
     reject: () => {
       channelMenuPanel.value.hide();
-    }
+    },
   });
 };
 
@@ -399,29 +373,29 @@ const confirmDeleteChannel = () => {
 const deleteChannel = async (channelId) => {
   try {
     const result = await channelStore.deleteChannel(channelId);
-    
+
     if (result.success) {
       toast.add({
-        severity: 'success',
-        summary: '成功',
-        detail: '頻道已成功刪除',
-        life: 3000
+        severity: "success",
+        summary: "成功",
+        detail: "頻道已成功刪除",
+        life: 3000,
       });
     } else {
       toast.add({
-        severity: 'error',
-        summary: '錯誤',
-        detail: result.error || '刪除頻道失敗',
-        life: 5000
+        severity: "error",
+        summary: "錯誤",
+        detail: result.error || "刪除頻道失敗",
+        life: 5000,
       });
     }
   } catch (error) {
-    console.error('刪除頻道時發生錯誤:', error);
+    console.error("刪除頻道時發生錯誤:", error);
     toast.add({
-      severity: 'error',
-      summary: '錯誤',
-      detail: '刪除頻道時發生未知錯誤',
-      life: 5000
+      severity: "error",
+      summary: "錯誤",
+      detail: "刪除頻道時發生未知錯誤",
+      life: 5000,
     });
   } finally {
     channelMenuPanel.value.hide();
